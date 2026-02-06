@@ -108,6 +108,94 @@ DIALOGUE_TEMPLATES = {
         {"role": "narrator", "content": "Correct, and you have found it."},
         {"role": "player", "content": "Now I'll use it"},
     ],
+    # Stress tests: Long histories (10-15 inputs)
+    24: [
+        {"role": "narrator", "content": "You're in a dim room with stone walls."},
+        {"role": "player", "content": "Where am I?"},
+        {"role": "narrator", "content": "You're in a locked room."},
+        {"role": "player", "content": "I look around"},
+        {"role": "narrator", "content": "You see a door and a table."},
+        {"role": "player", "content": "What's on the table?"},
+        {"role": "narrator", "content": "A brass key rests on it."},
+        {"role": "player", "content": "I pick up the key"},
+        {"role": "narrator", "content": "The key is cold and heavy."},
+        {"role": "player", "content": "I examine the door"},
+        {"role": "narrator", "content": "The door has a keyhole."},
+        {"role": "player", "content": "I move closer to the door"},
+        {"role": "narrator", "content": "You're now at the door."},
+        {"role": "player", "content": "I look at the keyhole"},
+        {"role": "narrator", "content": "It appears to match the key."},
+        {"role": "player", "content": "Is there anything else in the room?"},
+        {"role": "narrator", "content": "No, just the door and table."},
+        {"role": "player", "content": "I check if the door is locked"},
+        {"role": "narrator", "content": "Yes, it won't budge."},
+        {"role": "player", "content": "I hold the key up to the keyhole"},
+        {"role": "narrator", "content": "They look compatible."},
+    ],
+    25: [
+        {"role": "narrator", "content": "You wake up in a locked room."},
+        {"role": "player", "content": "What happened?"},
+        {"role": "narrator", "content": "You don't remember."},
+        {"role": "player", "content": "I stand up"},
+        {"role": "narrator", "content": "You're on your feet."},
+        {"role": "player", "content": "I scan the room"},
+        {"role": "narrator", "content": "There's a wooden door and a shelf."},
+        {"role": "player", "content": "What's on the shelf?"},
+        {"role": "narrator", "content": "A silver key."},
+        {"role": "player", "content": "I walk to the shelf"},
+        {"role": "narrator", "content": "You're at the shelf."},
+        {"role": "player", "content": "I grab the key"},
+        {"role": "narrator", "content": "You now hold the key."},
+        {"role": "player", "content": "I walk around the room"},
+        {"role": "narrator", "content": "The room is small with just the door and shelf."},
+        {"role": "player", "content": "I approach the door"},
+        {"role": "narrator", "content": "It's a heavy wooden door."},
+        {"role": "player", "content": "I test the door handle"},
+        {"role": "narrator", "content": "It's locked."},
+        {"role": "player", "content": "I notice the keyhole"},
+        {"role": "narrator", "content": "Yes, there's a keyhole in the door."},
+        {"role": "player", "content": "Maybe I should check if this key fits"},
+        {"role": "narrator", "content": "That seems logical."},
+    ],
+    26: [
+        {"role": "narrator", "content": "You find yourself trapped in a chamber."},
+        {"role": "player", "content": "This is strange"},
+        {"role": "narrator", "content": "Indeed."},
+        {"role": "player", "content": "I explore the area"},
+        {"role": "narrator", "content": "You see a door blocking the exit."},
+        {"role": "player", "content": "Can I open it?"},
+        {"role": "narrator", "content": "It's locked tight."},
+        {"role": "player", "content": "I search for clues"},
+        {"role": "narrator", "content": "You find a key on the ground."},
+        {"role": "player", "content": "A key! That could be useful"},
+        {"role": "narrator", "content": "Very observant."},
+        {"role": "player", "content": "I pick it up carefully"},
+        {"role": "narrator", "content": "The key is golden and ornate."},
+        {"role": "player", "content": "I walk back to the door"},
+        {"role": "narrator", "content": "You stand before the door."},
+    ],
+    27: [
+        {"role": "narrator", "content": "Welcome to the escape room."},
+        {"role": "player", "content": "I look for a way out"},
+        {"role": "narrator", "content": "The room has a locked door."},
+        {"role": "player", "content": "How do I get out?"},
+        {"role": "narrator", "content": "You'll need to figure that out."},
+        {"role": "player", "content": "I search the floor"},
+        {"role": "narrator", "content": "Nothing on the floor."},
+        {"role": "player", "content": "I check the walls"},
+        {"role": "narrator", "content": "Solid stone walls."},
+        {"role": "player", "content": "I look up"},
+        {"role": "narrator", "content": "Just a ceiling, no exit."},
+        {"role": "player", "content": "I inspect the door more closely"},
+        {"role": "narrator", "content": "It has a standard keyhole."},
+        {"role": "player", "content": "Where's the key?"},
+        {"role": "narrator", "content": "Look around more carefully."},
+        {"role": "player", "content": "I check behind things"},
+        {"role": "narrator", "content": "You find a key hidden behind a loose stone."},
+        {"role": "player", "content": "Found it!"},
+        {"role": "narrator", "content": "Good work."},
+        {"role": "player", "content": "This key must open the door"},
+    ],
 }
 
 
@@ -168,7 +256,7 @@ def benchmark_evaluate():
     """Run all test cases from CSV and report statistics."""
     
     print("=" * 80)
-    print("EVALUATE BENCHMARK - STRUCTURED TEST SUITE (CSV + YAML)")
+    print("EVALUATE BENCHMARK - COLLAPSED EVIDENCE FORMAT")
     print("=" * 80)
     print()
     
@@ -199,16 +287,22 @@ def benchmark_evaluate():
     total_passed = 0
     total_valid_format = 0  # Count of valid token responses
     total_tests = len(test_cases)
+    narrative_failures = []  # Track any narrative-style outputs
+    determinism_failures = []  # Track determinism issues
     
     # Run each test case
     for test_case in test_cases:
         is_correct, actual = run_test_case(test_case, level)
         results[test_case.expected_classification]["total"] += 1
         
-        # Check format compliance
+        # Check format compliance (must be valid token, not narrative)
         is_valid_format = actual in VALID_TOKENS
         if is_valid_format:
             total_valid_format += 1
+        else:
+            # Check if output looks like narrative (contains spaces, punctuation, multiple words)
+            if actual and (len(actual.split()) > 1 or any(c in actual for c in ".,!?;:")):
+                narrative_failures.append((test_case.case_id, actual))
         
         if is_correct:
             status = "✓ PASS"
@@ -224,6 +318,24 @@ def benchmark_evaluate():
         print(f"         Input: \"{test_case.player_input[:60]}...\"")
         print()
     
+    # Test determinism on a subset of test cases
+    print("=" * 80)
+    print("DETERMINISM CHECK (running same inputs twice)")
+    print("=" * 80)
+    for test_id in [1, 5, 12, 24, 27]:  # Sample from different categories
+        test_case = next((tc for tc in test_cases if tc.case_id == test_id), None)
+        if not test_case:
+            continue
+        _, result1 = run_test_case(test_case, level)
+        _, result2 = run_test_case(test_case, level)
+        is_deterministic = result1 == result2
+        if is_deterministic:
+            print(f"[TEST {test_id:2d}] ✓ Deterministic: {result1}")
+        else:
+            print(f"[TEST {test_id:2d}] ✗ NOT DETERMINISTIC: {result1} vs {result2}")
+            determinism_failures.append((test_id, result1, result2))
+    print()
+    
     # Print summary
     print("=" * 80)
     print("BENCHMARK SUMMARY")
@@ -234,6 +346,19 @@ def benchmark_evaluate():
     print(f"\n{'INSTRUCTION-FOLLOWING (Format Compliance)':<50}")
     print(f"  Valid token responses: {total_valid_format}/{total_tests} ({format_compliance:.1f}%)")
     print(f"  Invalid responses:     {total_tests - total_valid_format}/{total_tests} ({100 - format_compliance:.1f}%)")
+    
+    if narrative_failures:
+        print(f"\n  ⚠ NARRATIVE OUTPUT DETECTED ({len(narrative_failures)} cases):")
+        for case_id, output in narrative_failures[:3]:  # Show first 3
+            print(f"    - Test {case_id}: {output[:60]}...")
+    
+    # Determinism check
+    if determinism_failures:
+        print(f"\n  ⚠ DETERMINISM FAILURES: {len(determinism_failures)} cases")
+        for test_id, r1, r2 in determinism_failures:
+            print(f"    - Test {test_id}: {r1} vs {r2}")
+    else:
+        print(f"\n  ✓ DETERMINISM: All sampled tests produced consistent results")
     
     # Classification accuracy (only among valid responses)
     print(f"\n{'CLASSIFICATION ACCURACY (Semantic Correctness)':<50}")
@@ -264,9 +389,14 @@ def benchmark_evaluate():
     
     print("=" * 80)
     
-    # Success if at least 60% pass (9 out of 15)
-    required_passes = int(total_tests * 0.6)
-    return total_passed >= required_passes
+    # Success if at least 70% pass (higher bar for refactored version)
+    required_passes = int(total_tests * 0.7)
+    success = (total_passed >= required_passes and 
+               format_compliance >= 100 and  # All must be valid tokens
+               len(narrative_failures) == 0 and  # No narrative outputs
+               len(determinism_failures) == 0)  # Must be deterministic
+    
+    return success
 
 
 if __name__ == "__main__":

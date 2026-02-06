@@ -15,7 +15,7 @@ from engine.state import GameState
 from game.level import Level
 from .tools import load_model_config, load_prompt
 from langchain_ollama import ChatOllama  # type: ignore
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 
 
 LOG = logging.getLogger(__name__)
@@ -52,26 +52,50 @@ class Classification:
 def _get_llm() -> ChatOllama:
     """Create and return a ChatOllama instance configured for evaluation."""
     model = None
+    temperature = 0.0  # Default to 0 for deterministic classification
+    
     if isinstance(MODEL_CFG, dict):
         model = MODEL_CFG.get("model") or MODEL_CFG.get("name")
-    return ChatOllama(model=model) if model else ChatOllama()
+        temperature = MODEL_CFG.get("temperature", 0.0)
+    
+    return ChatOllama(model=model, temperature=temperature) if model else ChatOllama(temperature=0.0)
 
 
-def _dialogue_to_messages(dialogue):
-    """Convert dialogue history to LangChain message objects."""
-    messages = []
-    for turn in dialogue:
-        if not isinstance(turn, dict):
-            continue
-        role = turn.get("role")
-        content = turn.get("content")
-        if not isinstance(content, str):
-            continue
-        if role == "player":
-            messages.append(HumanMessage(content=content))
-        elif role == "narrator":
-            messages.append(AIMessage(content=content))
-    return messages
+def _collapse_player_inputs(dialogue, current_input: str) -> str:
+    """Collapse all player inputs into a single numbered evidence list.
+    
+    Args:
+        dialogue: List of dialogue turns with role and content.
+        current_input: The current player input to append to the history.
+        
+    Returns:
+        A formatted string with numbered player inputs in chronological order.
+    """
+    player_inputs = []
+    
+    # Extract all player inputs from dialogue history
+    if dialogue:
+        for turn in dialogue:
+            if not isinstance(turn, dict):
+                continue
+            role = turn.get("role")
+            content = turn.get("content")
+            if role == "player" and isinstance(content, str) and content.strip():
+                player_inputs.append(content.strip())
+    
+    # Add current input
+    if current_input.strip():
+        player_inputs.append(current_input.strip())
+    
+    # Format as numbered evidence list
+    if not player_inputs:
+        return "PLAYER INPUT HISTORY (evidence):\n(no player inputs yet)"
+    
+    lines = ["PLAYER INPUT HISTORY (evidence):"]
+    for i, player_input in enumerate(player_inputs, start=1):
+        lines.append(f"{i}. {player_input}")
+    
+    return "\n".join(lines)
 
 
 def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
@@ -90,36 +114,25 @@ def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
     """
     try:
         dialogue = state.vibe.dialogue or []
-        level_context = level.context or ""
         key_requirement = level.key_player_requirement or ""
         
-        # Build system message with context
-        system_parts = []
-        system_parts.append(SYSTEM_RULES)
+        # Build system messages:
+        # 1. Evaluator rules system message
+        lc_messages = [SystemMessage(content=SYSTEM_RULES)]
         
-        if level_context:
-            system_parts.append("Level context:\n" + level_context)
-        
+        # 2. Key requirement system message
         if key_requirement:
-            system_parts.append("Key player requirement (what they must understand):\n" + key_requirement)
+            key_req_message = f"Key player requirement (what they must understand):\n{key_requirement}"
+            lc_messages.append(SystemMessage(content=key_req_message))
         
-        valid_tokens_str = " | ".join(level.value for level in UnderstandingLevel)
-        system_parts.append(f"⚠ CRITICAL: You MUST respond with ONLY ONE of these four words, nothing else:\n{valid_tokens_str}")
-        system_message = "\n\n".join(system_parts)
-        
-        # Build LLM messages
-        lc_messages = [SystemMessage(content=system_message)]
-        lc_messages.extend(_dialogue_to_messages(dialogue))
-        
-        # Add current user input
-        if user_input.strip():
-            lc_messages.append(HumanMessage(content=user_input))
-        else:
-            lc_messages.append(HumanMessage(content=DEFAULT_EVALUATION_PROMPT))
+        # 3. Collapsed player input history as single HumanMessage
+        collapsed_history = _collapse_player_inputs(dialogue, user_input)
+        lc_messages.append(HumanMessage(content=collapsed_history))
 
         # Invoke LLM
         llm = _get_llm()
         LOG.debug(f"Invoking evaluator LLM with {len(lc_messages)} messages")
+        LOG.debug(f"Collapsed player history:\n{collapsed_history}")
         
         result = llm.invoke(lc_messages)
         raw = result.content if hasattr(result, 'content') else str(result)

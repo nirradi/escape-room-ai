@@ -157,16 +157,6 @@ def render_patch_result(result: PatchResult) -> None:
 			LOG.debug(f"    - {w}")
 
 
-def render_strict_state(state: state_mod.GameState) -> None:
-    """Print the strict state for debugging."""
-    try:
-        strict_dict = asdict(state.strict)
-    except Exception:
-        # Fallback: serialize via state_to_json and extract 'strict'
-        doc = json.loads(state_mod.state_to_json(state))
-        strict_dict = doc.get('strict', {})
-    LOG.debug("Current strict state:")
-    LOG.debug(json.dumps(strict_dict, indent=2))
 
 
 def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: str = "bobs-plan.yaml") -> None:
@@ -253,8 +243,6 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: st
 			"vibe": {"dialogue": updated_dialogue, "urgency": state.vibe.urgency},
 		}
 		state = apply_patch(state, dialogue_patch).state
-
-		render_strict_state(state)
 
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:

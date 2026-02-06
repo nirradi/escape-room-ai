@@ -22,3 +22,7 @@ case_id,expected_classification,description,player_input
 21,PARTIAL_UNDERSTANDING,Question exploring the connection,"Is there a lock that matches this key?"
 22,NO_SIGNAL,Generic question without revealing understanding,"What should I do?"
 23,NO_SIGNAL,Vague question unrelated to key requirement,"Is anyone else here?"
+24,PARTIAL_UNDERSTANDING,Long history with gradual exploration showing partial understanding,"The keyhole and key look like they match"
+25,PARTIAL_UNDERSTANDING,Extended dialogue with tentative connection at end,"Maybe I should check if this key fits"
+26,NO_SIGNAL,Long history but final input too vague to classify,"I walk back to the door"
+27,CLEAR_UNDERSTANDING,Long history culminating in clear understanding,"This key must open the door"
