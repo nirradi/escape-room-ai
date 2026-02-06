@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  game:
+    build: .
+    container_name: escape-room-game
+    stdin_open: true
+    tty: true
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./levels:/app/levels
+      - ./config:/app/config
+      - ollama_cache:/root/.ollama
+
+volumes:
+  ollama_cache:
