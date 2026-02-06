@@ -13,11 +13,13 @@ def test_load_level_parses_fields(tmp_path: Path) -> None:
         """
 level_id: 2
 title: "Test Level"
+context: |
+  General context.
 narration_prompt: |
   Line one.
   Line two.
-mutation_prompt: |
-  Mutate.
+key_player_requirement: |
+  Understand the concept.
 max_turns: 7
 """.lstrip()
     )
@@ -27,8 +29,9 @@ max_turns: 7
     assert isinstance(level, Level)
     assert level.level_id == 2
     assert level.title == "Test Level"
+    assert level.context == "General context."
     assert level.narration_prompt == "Line one.\nLine two."
-    assert level.mutation_prompt == "Mutate."
+    assert level.key_player_requirement == "Understand the concept."
     assert level.max_turns == 7
     assert level.raw.get("level_id") == 2
 

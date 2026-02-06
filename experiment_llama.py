@@ -8,7 +8,7 @@ llm = ChatOllama(model="llama3.1")
 # Define a prompt template
 prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a helpful assistant."),
-    ("user", "{input}")
+    ("player", "{input}")
 ])
 
 # Create a chain using LangChain Expression Language (LCEL)

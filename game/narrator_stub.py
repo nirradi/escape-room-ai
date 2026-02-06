@@ -23,7 +23,7 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
     Echoes the urgency level for testing purposes.
     
     Args:
-        user_input: The user's input.
+        user_input: The player's input.
         state: The current game state.
         level: The current level definition.
         

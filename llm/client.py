@@ -15,7 +15,7 @@ def generate(prompt: str, model_cfg: Dict[str, Any]) -> str:
     """Invoke LangChain Ollama and return the string output.
 
     Args:
-        prompt: The user-level prompt string to feed to the chain.
+        prompt: The player-level prompt string to feed to the chain.
         model_cfg: Optional dict with keys like `model`.
 
     Raises:
@@ -34,7 +34,7 @@ def generate(prompt: str, model_cfg: Dict[str, Any]) -> str:
 
     prompt_tpl = ChatPromptTemplate.from_messages([
         ("system", "You are a helpful assistant."),
-        ("user", "{input}"),
+        ("player", "{input}"),
     ])
 
     llm = ChatOllama(model=model) if model else ChatOllama()

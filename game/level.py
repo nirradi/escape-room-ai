@@ -14,8 +14,9 @@ class Level:
     """Represents a loaded game level."""
     level_id: int
     title: str
+    context: Optional[str] = None
     narration_prompt: Optional[str] = None
-    mutation_prompt: Optional[str] = None
+    key_player_requirement: Optional[str] = None
     max_turns: Optional[int] = None
     raw: Dict[str, Any] = field(default_factory=dict)
 
@@ -40,8 +41,9 @@ def load_level(level_path: Path) -> Level:
     return Level(
         level_id=int(data.get("level_id") or 0),
         title=str(data.get("title") or ""),
+        context=_safe_str(data.get("context")),
         narration_prompt=_safe_str(data.get("narration_prompt")),
-        mutation_prompt=_safe_str(data.get("mutation_prompt")),
+        key_player_requirement=_safe_str(data.get("key_player_requirement")),
         max_turns=_safe_int(data.get("max_turns")),
         raw=data,
     )

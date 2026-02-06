@@ -1,6 +1,6 @@
-"""Stub (non-LLM) patch generator for the game loop.
+"""Stub (non-LLM) evaluator for the game loop.
 
-This is a deterministic, hard-coded patch generator for testing and
+This is a deterministic, hard-coded evaluator for testing and
 quick iteration without requiring an LLM.
 """
 
@@ -18,8 +18,8 @@ class Classification:
     level: str  # CLEAR_UNDERSTANDING, PARTIAL_UNDERSTANDING, NO_SIGNAL, MISUNDERSTANDING
 
 
-def generate_confidence(user_input: str, state: GameState, level: Level) -> Classification:
-	"""Generate a stub classification based on input.
+def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
+	"""Evaluate player understanding based on input.
 	
 	Args:
 		user_input: The player's input.

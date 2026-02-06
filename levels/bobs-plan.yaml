@@ -1,15 +1,24 @@
 level_id: 1
 title: "Bob's Plan"
 
-# Level-specific narration context
-narration_prompt: |
-  Bob is very friendly and persuasive, but you get a sense that he is trying to convince you to join his plan for his own benefit.
-  He is pushy, charming, and sometimes evasive. Describe interactions, tension, and atmosphere.
-  Do not reveal any win conditions or what the player should deduce.
+# General level context used by both narration and mutation
+context: |
+  You are in a dimly lit room with Bob, an entrepreneur with a charismatic presence and questionable ethics.
+  Bob is pitching his latest scheme, which involves something that sounds exciting but feels slightly off.
+  The player is trying to understand what Bob really wants and whether this is a scam.
 
-# Optional: mutation prompt for later phases (Phase 2+)
-mutation_prompt: |
-  [Reserved for future use: instructions for updating or altering the world state based on player actions]
+# Narration-specific guidelines
+narration_prompt: |
+  You are narrating an escape room scenario from a first-person perspective.
+  Describe Bob's presence, the room's atmosphere, and the emotional tension of the interaction.
+  Focus on sensory details and emotional cues. Bob is persuasive but evasive about key details.
+  Do not reveal any win conditions or solutions the player should discover.
+
+# Key player requirement: the main question/concept they must grasp
+key_player_requirement: |
+  The player must understand that Bob's plan is self-serving and potentially deceptive.
+  Signs of understanding: They should ask probing questions about Bob's motives, identify inconsistencies,
+  or express skepticism about the benefits being promised. They should reason about what Bob gains from this.
 
 # Optional: other metadata
 max_turns: 10

@@ -1,6 +1,6 @@
 """Tests for the game loop.
 
-Tests the main game loop with user input simulation using stubbed mutator and narrator.
+Tests the main game loop with player input simulation using stubbed evaluator and narrator.
 """
 
 import pytest
@@ -11,22 +11,22 @@ from game.loop import main
 
 
 class TestGameLoopWin:
-    """Test the game loop win condition by driving it with simulated user input."""
+    """Test the game loop win condition by driving it with simulated player input."""
 
-    def test_win_with_stub_mutator(self):
+    def test_win_with_stub_evaluator(self):
         """WIN test: Execute the full loop and reach win condition."""
-        # Simulate user inputs that increase confidence to win
-        # The stub mutator increases confidence by 0.1 per "increase confidence" command
-        # We need 5 inputs to reach 0.5 (the threshold)
-        user_inputs = ["increase confidence"] * 5
+        # Simulate player inputs that increase confidence to win
+        # The stub evaluator increases confidence by 0.25 per "increase confidence" command
+        # We need 2 inputs to reach 0.5 (the threshold)
+        user_inputs = ["increase confidence"] * 2
         
         with patch("builtins.input", side_effect=user_inputs):
             # Should not raise an exception, just exit normally on win
-            main(mutator_type="stub-win", narrator_type="stub")
+            main(evaluator_type="stub", narrator_type="stub")
 
 
 class TestGameLoopTimeout:
-    """Test the game loop timeout condition by driving it with simulated user input."""
+    """Test the game loop timeout condition by driving it with simulated player input."""
 
     def test_timeout_with_max_iterations(self):
         """TIMEOUT test: Execute the loop until max counter is reached."""
@@ -36,7 +36,7 @@ class TestGameLoopTimeout:
         
         with patch("builtins.input", side_effect=user_inputs):
             # Should exit normally on timeout
-            main(mutator_type="stub-lose", narrator_type="stub")
+            main(evaluator_type="stub", narrator_type="stub")
 
 
 class TestUrgencyProgression:
@@ -55,7 +55,7 @@ class TestUrgencyProgression:
         
         with patch("builtins.input", side_effect=user_inputs):
             with patch("builtins.print") as mock_print:
-                main(mutator_type="stub-lose", narrator_type="stub")
+                main(evaluator_type="stub", narrator_type="stub")
                 
                 # Capture all print outputs
                 for call in mock_print.call_args_list:
@@ -88,7 +88,7 @@ class TestUrgencyProgression:
         
         with patch("builtins.input", side_effect=user_inputs):
             with patch("builtins.print") as mock_print:
-                main(mutator_type="stub-lose", narrator_type="stub")
+                main(evaluator_type="stub", narrator_type="stub")
                 
                 # Capture printed outputs
                 outputs = [call[0][0] for call in mock_print.call_args_list if call[0]]

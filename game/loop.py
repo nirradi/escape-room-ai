@@ -4,7 +4,7 @@
 
 Orchestrates: terminal input -> intent -> patch generator (stub or LLM) -> apply_patch -> render
 
-The patch generator can be configured at runtime via mutator_type ("stub" or "llm").
+The patch generator can be configured at runtime via evaluator_type ("stub" or "llm").
 """
 from __future__ import annotations
 
@@ -17,39 +17,35 @@ from typing import Optional
 from pathlib import Path
 
 from engine import state as state_mod
-from engine.patch import apply_patch, PatchResult
+from engine.patch import apply_patch, PatchResult, classification_to_patch
 
 from enum import Enum
 from game.narrate import Narration
 from game import level as level_mod
 
 
-def get_mutator(mutator_type: str = "llm"):
-	"""Return the appropriate patch generator function based on type.
+def get_evaluator(evaluator_type: str = "llm"):
+	"""Return the appropriate evaluator function based on type.
 
 	Args:
-		mutator_type: "stub" or "llm" (default).
+		evaluator_type: "stub" or "llm" (default).
 
 	Returns:
-		A callable with signature: generate_patch(intent, state, level_context) -> dict
+		A callable with signature: evaluate(user_input, state, level) -> Classification
 
 	Raises:
-		ValueError: If mutator_type is unknown.
+		ValueError: If evaluator_type is unknown.
 	"""
-	if mutator_type == "stub-win":
-		from game.mutate_stub import generate_confidence as stub_gen
-		LOG.info("Using stub (non-LLM) mutator")
-		return stub_gen
-	elif mutator_type == "stub-lose":
-		from game.mutate_stub import generate_confidence as stub_gen
-		LOG.info("Using stub (non-LLM) mutator")
-		return stub_gen
-	elif mutator_type == "llm":
-		from llm.mutate import generate_confidence as llm_gen
-		LOG.info("Using LLM mutator")
-		return llm_gen
+	if evaluator_type == "stub":
+		from game.evaluate_stub import evaluate
+		LOG.info("Using stub (non-LLM) evaluator")
+		return evaluate
+	elif evaluator_type == "llm":
+		from llm.evaluate import evaluate
+		LOG.info("Using LLM evaluator")
+		return evaluate
 	else:
-		raise ValueError(f"Unknown mutator_type: {mutator_type}")
+		raise ValueError(f"Unknown evaluator_type: {evaluator_type}")
 
 
 def get_narrator(narrator_type: str = "llm"):
@@ -78,7 +74,7 @@ def get_narrator(narrator_type: str = "llm"):
 
 LOG = logging.getLogger(__name__)
 
-# Configure root logger from environment so modules like `llm.mutate`
+# Configure root logger from environment so modules like `llm.evaluate`
 # emitting DEBUG logs are visible when `LOGLEVEL=DEBUG` is set.
 _loglevel = os.getenv("LOGLEVEL", "INFO").upper()
 try:
@@ -97,6 +93,19 @@ class LevelResult(Enum):
 		WIN = "win"
 		CONTINUE = "continue"
 		TIMEOUT_FAIL = "timeout_fail"
+
+
+def _calculate_urgency(game_counter: int, max_turns: Optional[int]) -> str:
+	if max_turns is None or max_turns <= 0:
+		return "SOME URGENCY"
+	progress = game_counter / max_turns
+	if progress < 0.25:
+		return "SOME URGENCY"
+	if progress < 0.50:
+		return "MODERATE URGENCY"
+	if progress < 0.75:
+		return "VERY URGENT"
+	return "DIRE"
 
 
 def check_level_conditions(state: state_mod.GameState, level: level_mod.Level) -> LevelResult:
@@ -147,16 +156,16 @@ def render_strict_state(state: state_mod.GameState) -> None:
     LOG.debug(json.dumps(strict_dict, indent=2))
 
 
-def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
+def main(evaluator_type: str = "llm", narrator_type: str = "llm") -> None:
 	"""Run the main game loop.
 
 	Args:
-		mutator_type: "stub-win", "stub-lose", or "llm" (default, uses LLM mutator).
+		evaluator_type: "stub" or "llm" (default, uses LLM evaluator).
 		narrator_type: "stub" or "llm" (default, uses LLM narrator).
 	"""
 
-	LOG.info("Starting game loop with mutator_type=%s, narrator_type=%s", mutator_type, narrator_type)
-	mutator = get_mutator(mutator_type)
+	LOG.info("Starting game loop with evaluator_type=%s, narrator_type=%s", evaluator_type, narrator_type)
+	evaluator = get_evaluator(evaluator_type)
 	narrator = get_narrator(narrator_type)
 	level = level_mod.load_level(Path("levels") / "bobs-plan.yaml")
 	state = state_mod.create_initial_state()
@@ -168,16 +177,30 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 			LOG.debug('Exiting.')
 			break
 
-		# Use the selected mutator to generate the patch
-		patch = mutator(user_input, state)
+		# Understand whether the player is making progress towards the solution or not
+		classification = evaluator(user_input, state, level)
+
+		# Based on the classification, generate a patch to update the game state
+		new_game_counter = state.strict.gameCounter + 1
+		urgency = _calculate_urgency(new_game_counter, level.max_turns)
+		patch = classification_to_patch(classification.level, state.strict.solutionConfidenceScore) or {}
+		strict_patch = patch.get("strict") or {}
+		strict_patch["gameCounter"] = new_game_counter
+		patch["strict"] = strict_patch
+		patch["vibe"] = {
+			"last_evaluator_classification": classification.level,
+			"urgency": urgency,
+		}
 
 		if patch:
 			LOG.debug("Proposed patch:")
 			LOG.debug(json.dumps(patch, indent=2))
-		result = apply_patch(state, patch or {}, level_max_turns=level.max_turns)
+		result = apply_patch(state, patch)
 		if patch:
 			render_patch_result(result)
 		state = result.state
+
+		# Check win/lose conditions before narrating
 		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
 			print("WIN CONDITION MET — Level complete.")
@@ -190,8 +213,15 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 		narration = narrator(user_input, state, level)
 		print(narration.text)
 		
-		# Add narration to history in vibe state
-		state.vibe.narrator_history.append(narration.text)
+		# Add both player and narrator turns to dialogue history
+		base_dialogue = state.vibe.dialogue or []
+		user_turn = {"role": "player", "content": user_input}
+		narrator_turn = {"role": "narrator", "content": narration.text}
+		updated_dialogue = base_dialogue + [user_turn, narrator_turn]
+		dialogue_patch = {
+			"vibe": {"dialogue": updated_dialogue, "urgency": state.vibe.urgency},
+		}
+		state = apply_patch(state, dialogue_patch).state
 
 		render_strict_state(state)
 
@@ -199,10 +229,10 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Escape room game loop")
 	parser.add_argument(
-		"--mutator-type",
-		default=os.getenv("MUTATOR_TYPE", "llm"),
-		choices=["stub-win", "stub-lose", "llm"],
-		help="Patch generator type",
+		"--evaluator-type",
+		default=os.getenv("EVALUATOR_TYPE", "llm"),
+		choices=["stub", "llm"],
+		help="Evaluator type",
 	)
 	parser.add_argument(
 		"--narrator-type",
@@ -215,4 +245,4 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 
 if __name__ == '__main__':
 	args = _parse_args()
-	main(mutator_type=args.mutator_type, narrator_type=args.narrator_type)
+	main(evaluator_type=args.evaluator_type, narrator_type=args.narrator_type)

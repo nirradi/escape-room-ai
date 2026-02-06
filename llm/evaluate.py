@@ -1,4 +1,4 @@
-"""State mutation LLM.
+"""Player understanding evaluator LLM.
 
 Classifies player input to determine understanding level based on game context.
 Uses LangChain to structure prompts and invoke LLM classification.
@@ -17,8 +17,8 @@ from .tools import load_model_config, load_prompt
 
 LOG = logging.getLogger(__name__)
 
-MODEL_CFG: Dict[str, Any] = load_model_config(key="mutator")
-SYSTEM_RULES: str = load_prompt("mutate")
+MODEL_CFG: Dict[str, Any] = load_model_config(key="evaluator")
+SYSTEM_RULES: str = load_prompt("evaluate")
 
 
 @dataclass
@@ -28,7 +28,7 @@ class Classification:
 
 
 def _build_chain():
-    """Build and return the LangChain mutator classification chain.
+    """Build and return the LangChain evaluator classification chain.
     
     Returns:
         A chain that accepts a dict with:
@@ -71,11 +71,11 @@ def _build_chain():
 
 
 # Build chain once at module initialization
-_MUTATOR_CHAIN = _build_chain()
+_EVALUATOR_CHAIN = _build_chain()
 
 
-def generate_confidence(user_input: str, state: GameState, level: Level) -> Classification:
-    """Generate a classification of player understanding from player input.
+def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
+    """Evaluate player understanding from player input.
     
     Args:
         user_input: The player's input.
@@ -92,7 +92,7 @@ def generate_confidence(user_input: str, state: GameState, level: Level) -> Clas
         key_requirement = level.key_player_requirement or ""
         
         # Invoke chain with structured inputs
-        classification = _MUTATOR_CHAIN.invoke({
+        classification = _EVALUATOR_CHAIN.invoke({
             "system_rules": SYSTEM_RULES,
             "level_context": level_context,
             "key_requirement": key_requirement,
@@ -102,7 +102,7 @@ def generate_confidence(user_input: str, state: GameState, level: Level) -> Clas
         })
         
         if classification is None:
-            raise RuntimeError("Mutator LLM returned no output")
+            raise RuntimeError("Evaluator LLM returned no output")
         
         # Clean and validate output
         result = classification.strip().upper()
@@ -114,7 +114,6 @@ def generate_confidence(user_input: str, state: GameState, level: Level) -> Clas
         
         return Classification(level=result)
     except Exception as exc:
-        LOG.error("Mutator LLM failed: %s", exc)
+        LOG.error("Evaluator LLM failed: %s", exc)
         # Fallback: assume no signal on error
         return Classification(level="NO_SIGNAL")
-

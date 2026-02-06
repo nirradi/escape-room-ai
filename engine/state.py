@@ -28,8 +28,9 @@ class VibeState:
     Can be extended with narrative details.
     """
     name: Optional[str] = None
-    narrator_history: list = field(default_factory=list)
+    dialogue: list = field(default_factory=list)
     urgency: str = "SOME URGENCY"
+    last_evaluator_classification: Optional[str] = None
 
 
 @dataclass
@@ -54,8 +55,9 @@ def create_initial_state() -> GameState:
         ),
         vibe=VibeState(
             name=None,
-            narrator_history=[],
-            urgency="SOME URGENCY"
+            dialogue=[],
+            urgency="SOME URGENCY",
+            last_evaluator_classification=None,
         )
     )
 
@@ -99,8 +101,9 @@ def state_from_json(json_str: str) -> GameState:
     
     vibe = VibeState(
         name=data["vibe"].get("name"),
-        narrator_history=data["vibe"].get("narrator_history", []),
-        urgency=data["vibe"].get("urgency", "SOME URGENCY")
+        dialogue=data["vibe"].get("dialogue", []),
+        urgency=data["vibe"].get("urgency", "SOME URGENCY"),
+        last_evaluator_classification=data["vibe"].get("last_evaluator_classification"),
     )
     
     return GameState(strict=strict, vibe=vibe)
