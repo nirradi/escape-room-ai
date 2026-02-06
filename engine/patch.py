@@ -13,7 +13,7 @@ Key design principles:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from copy import deepcopy
 
 from engine.state import GameState, StrictState, VibeState
@@ -21,6 +21,32 @@ from engine.state import GameState, StrictState, VibeState
 
 # Type alias for a patch dictionary
 Patch = dict[str, Any]
+
+
+def _calculate_urgency(game_counter: int, max_turns: Optional[int]) -> str:
+    """
+    Determine urgency level based on progress through the level.
+    
+    Args:
+        game_counter: Current turn count.
+        max_turns: Maximum turns available for the level (None means unlimited).
+        
+    Returns:
+        str: One of "SOME URGENCY", "MODERATE URGENCY", "VERY URGENT", "DIRE".
+    """
+    if max_turns is None or max_turns <= 0:
+        return "SOME URGENCY"
+    
+    progress = game_counter / max_turns
+    
+    if progress < 0.25:
+        return "SOME URGENCY"
+    elif progress < 0.50:
+        return "MODERATE URGENCY"
+    elif progress < 0.75:
+        return "VERY URGENT"
+    else:
+        return "DIRE"
 
 
 @dataclass
@@ -127,7 +153,7 @@ def _apply_vibe_patch(
     return updated, warnings
 
 
-def apply_patch(state: GameState, patch: Patch) -> PatchResult:
+def apply_patch(state: GameState, patch: Patch, level_max_turns: Optional[int] = None) -> PatchResult:
     """Apply a patch to the game state.
     
     Patches have two top-level keys:
@@ -136,10 +162,13 @@ def apply_patch(state: GameState, patch: Patch) -> PatchResult:
     
     Strict patches are validated before application. If validation fails,
     those fields are not applied. Vibe patches are applied permissively.
+    Each call also advances the turn counter unless explicitly patched and
+    calculates the current urgency level based on progress.
     
     Args:
         state: Current game state.
         patch: Patch dict with "strict" and/or "vibe" keys.
+        level_max_turns: Maximum turns for the current level (for urgency calculation).
         
     Returns:
         PatchResult: Contains updated state, errors, and warnings.
@@ -153,7 +182,7 @@ def apply_patch(state: GameState, patch: Patch) -> PatchResult:
                 "name": ["Mysterious Stranger"]
             }
         }
-        result = apply_patch(state, patch)
+        result = apply_patch(state, patch, level_max_turns=10)
         if result.success:
             state = result.state
     """
@@ -162,11 +191,13 @@ def apply_patch(state: GameState, patch: Patch) -> PatchResult:
     updated_state = deepcopy(state)
     all_errors: list[ValidationError] = []
     all_warnings: list[str] = []
+    patched_game_counter = False
     
     # Apply strict patches with validation
     if "strict" in patch:
         strict_patch = patch["strict"]
         if isinstance(strict_patch, dict):
+            patched_game_counter = "gameCounter" in strict_patch
             updated_strict, strict_errors = _apply_strict_patch(
                 updated_state.strict,
                 strict_patch
@@ -189,6 +220,13 @@ def apply_patch(state: GameState, patch: Patch) -> PatchResult:
         else:
             all_warnings.append("vibe patch should be a dict, skipping")
     
+    if not patched_game_counter:
+        updated_state.strict.gameCounter += 1
+
+    # Calculate and update urgency based on current progress
+    urgency = _calculate_urgency(updated_state.strict.gameCounter, level_max_turns)
+    updated_state.vibe.urgency = urgency
+
     # Success if no strict validation errors occurred
     success = len(all_errors) == 0
     

@@ -8,17 +8,20 @@ The patch generator can be configured at runtime via mutator_type ("stub" or "ll
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
 from dataclasses import asdict
 from typing import Optional
+from pathlib import Path
 
 from engine import state as state_mod
 from engine.patch import apply_patch, PatchResult
 
 from enum import Enum
 from game.narrate import Narration
+from game import level as level_mod
 
 
 def get_mutator(mutator_type: str = "llm"):
@@ -56,7 +59,7 @@ def get_narrator(narrator_type: str = "llm"):
 		narrator_type: "stub" or "llm" (default).
 
 	Returns:
-		A callable with signature: narrate(user_input, state) -> Narration
+		A callable with signature: narrate(user_input, state, level) -> Narration
 
 	Raises:
 		ValueError: If narrator_type is unknown.
@@ -96,11 +99,12 @@ class LevelResult(Enum):
 		TIMEOUT_FAIL = "timeout_fail"
 
 
-def check_level_conditions(state: state_mod.GameState) -> LevelResult:
+def check_level_conditions(state: state_mod.GameState, level: level_mod.Level) -> LevelResult:
 	"""Check if the current level's win conditions are met.
 	
 	Args:
 		state: Current game state.
+		level: Current level definition.
 	
 	Returns:
 		LevelResult: WIN, CONTINUE, or TIMEOUT_FAIL.
@@ -110,7 +114,8 @@ def check_level_conditions(state: state_mod.GameState) -> LevelResult:
 		return LevelResult.WIN
 	
 
-	if state.strict.gameCounter >= state.strict.maxGameCounter:
+	max_turns = level.max_turns or 0
+	if max_turns and state.strict.gameCounter >= max_turns:
 		return LevelResult.TIMEOUT_FAIL
 	
 	return LevelResult.CONTINUE
@@ -153,6 +158,7 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 	LOG.info("Starting game loop with mutator_type=%s, narrator_type=%s", mutator_type, narrator_type)
 	mutator = get_mutator(mutator_type)
 	narrator = get_narrator(narrator_type)
+	level = level_mod.load_level(Path("levels") / "bobs-plan.yaml")
 	state = state_mod.create_initial_state()
 
 	while True:
@@ -162,21 +168,17 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 			LOG.debug('Exiting.')
 			break
 
-		# Increment game counter for this turn
-		state.strict.gameCounter += 1
-
 		# Use the selected mutator to generate the patch
 		patch = mutator(user_input, state)
 
-		result = None
 		if patch:
 			LOG.debug("Proposed patch:")
 			LOG.debug(json.dumps(patch, indent=2))
-			result = apply_patch(state, patch)
+		result = apply_patch(state, patch or {}, level_max_turns=level.max_turns)
+		if patch:
 			render_patch_result(result)
-			if result and result.success:
-				state = result.state
-		level_result = check_level_conditions(state)
+		state = result.state
+		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
 			print("WIN CONDITION MET — Level complete.")
 			break
@@ -185,11 +187,32 @@ def main(mutator_type: str = "llm", narrator_type: str = "llm") -> None:
 			break
 
 		# Use the selected narrator to generate narration
-		narration = narrator(user_input, state)
+		narration = narrator(user_input, state, level)
 		print(narration.text)
+		
+		# Add narration to history in vibe state
+		state.vibe.narrator_history.append(narration.text)
 
 		render_strict_state(state)
 
 
+def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
+	parser = argparse.ArgumentParser(description="Escape room game loop")
+	parser.add_argument(
+		"--mutator-type",
+		default=os.getenv("MUTATOR_TYPE", "llm"),
+		choices=["stub-win", "stub-lose", "llm"],
+		help="Patch generator type",
+	)
+	parser.add_argument(
+		"--narrator-type",
+		default=os.getenv("NARRATOR_TYPE", "llm"),
+		choices=["stub", "llm"],
+		help="Narrator type",
+	)
+	return parser.parse_args(argv)
+
+
 if __name__ == '__main__':
-    main()
+	args = _parse_args()
+	main(mutator_type=args.mutator_type, narrator_type=args.narrator_type)

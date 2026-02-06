@@ -1,0 +1,15 @@
+level_id: 1
+title: "Bob's Plan"
+
+# Level-specific narration context
+narration_prompt: |
+  Bob is very friendly and persuasive, but you get a sense that he is trying to convince you to join his plan for his own benefit.
+  He is pushy, charming, and sometimes evasive. Describe interactions, tension, and atmosphere.
+  Do not reveal any win conditions or what the player should deduce.
+
+# Optional: mutation prompt for later phases (Phase 2+)
+mutation_prompt: |
+  [Reserved for future use: instructions for updating or altering the world state based on player actions]
+
+# Optional: other metadata
+max_turns: 10

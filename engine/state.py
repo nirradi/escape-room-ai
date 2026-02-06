@@ -1,8 +1,7 @@
 """State model and helpers."""
 import json
 from dataclasses import dataclass, field, asdict
-from typing import Optional, Union
-from copy import deepcopy
+from typing import Optional
 
 from dataclasses_jsonschema import JsonSchemaMixin
 
@@ -15,7 +14,6 @@ class StrictState(JsonSchemaMixin):
     No dynamic keys allowed. Structure is fixed and enforced.
     """
     gameCounter: int = 0
-    maxGameCounter: int = 10
     level: int = 1
     currentLevelAttempsts: int = 0
     solutionConfidenceScore: float = 0.0
@@ -30,6 +28,8 @@ class VibeState:
     Can be extended with narrative details.
     """
     name: Optional[str] = None
+    narrator_history: list = field(default_factory=list)
+    urgency: str = "SOME URGENCY"
 
 
 @dataclass
@@ -53,7 +53,9 @@ def create_initial_state() -> GameState:
             currentLevelAttempsts=0,
         ),
         vibe=VibeState(
-            
+            name=None,
+            narrator_history=[],
+            urgency="SOME URGENCY"
         )
     )
 
@@ -96,7 +98,9 @@ def state_from_json(json_str: str) -> GameState:
     )
     
     vibe = VibeState(
-        name=data["vibe"].get("name")
+        name=data["vibe"].get("name"),
+        narrator_history=data["vibe"].get("narrator_history", []),
+        urgency=data["vibe"].get("urgency", "SOME URGENCY")
     )
     
     return GameState(strict=strict, vibe=vibe)

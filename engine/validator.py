@@ -1,1 +1,0 @@
-"""Patch validation and application."""
