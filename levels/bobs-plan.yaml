@@ -3,15 +3,15 @@ title: "Bob's Plan"
 
 # General level context used by both narration and mutation
 context: |
-  You are in a dimly lit room with Bob, an entrepreneur with a charismatic presence and questionable ethics.
+  The player starts out in a dimly lit room with Bob, an entrepreneur with a charismatic presence and questionable ethics.
   Bob is pitching his latest scheme, which involves something that sounds exciting but feels slightly off.
   The player is trying to understand what Bob really wants and whether this is a scam.
 
 # Narration-specific guidelines
 narration_prompt: |
-  You are narrating an escape room scenario from a first-person perspective.
-  Describe Bob's presence, the room's atmosphere, and the emotional tension of the interaction.
-  Focus on sensory details and emotional cues. Bob is persuasive but evasive about key details.
+  Narrate an escape room scenario depicting the player's first-person experience.
+  Describe Bob's presence, the room's atmosphere, and the emotional tension of the interaction the player is experiencing.
+  Focus on sensory details and emotional cues that the player would perceive. Bob is persuasive but evasive about key details.
   Do not reveal any win conditions or solutions the player should discover.
 
 # Key player requirement: the main question/concept they must grasp

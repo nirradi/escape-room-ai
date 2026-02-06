@@ -10,6 +10,8 @@ import logging
 from engine.state import GameState
 from game.level import Level
 from .tools import load_model_config, load_prompt
+from langchain_ollama import ChatOllama  # type: ignore
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 # TODO: Prompt tuning per level
 # TODO: Injecting story context later
@@ -17,8 +19,10 @@ from .tools import load_model_config, load_prompt
 
 LOG = logging.getLogger(__name__)
 
+# === Initialization (runs once at module load) ===
 MODEL_CFG: Dict[str, Any] = load_model_config(key="narrator")
 GENERAL_NARRATOR_RULES: str = load_prompt("narrate")
+INITIAL_NARRATOR_RULES: str = load_prompt("narrate_initial")
 
 CLASSIFICATION_NOTES = {
     "CLEAR_UNDERSTANDING": "The player is on the right track.",
@@ -34,29 +38,18 @@ class Narration:
     text: str
 
 
-def _build_chain(messages):
-    """Build and return the LangChain narrator chain."""
-    try:
-        from langchain_ollama import ChatOllama  # type: ignore
-        from langchain_core.prompts import ChatPromptTemplate  # type: ignore
-        from langchain_core.output_parsers import StrOutputParser  # type: ignore
-    except Exception as exc:
-        raise RuntimeError("langchain_ollama or langchain_core not available") from exc
+# === Helpers (runtime utilities) ===
 
-    # Extract model name from config
+def _get_llm() -> ChatOllama:
+    """Create and return a ChatOllama instance configured for narration."""
     model = None
     if isinstance(MODEL_CFG, dict):
         model = MODEL_CFG.get("model") or MODEL_CFG.get("name")
-
-    prompt_tpl = ChatPromptTemplate.from_messages(messages)
-
-    llm = ChatOllama(model=model) if model else ChatOllama()
-    chain = prompt_tpl | llm | StrOutputParser()
-
-    return chain
+    return ChatOllama(model=model) if model else ChatOllama()
 
 
 def _dialogue_to_messages(dialogue):
+    """Convert dialogue history to LangChain message objects."""
     messages = []
     for turn in dialogue:
         if not isinstance(turn, dict):
@@ -66,13 +59,14 @@ def _dialogue_to_messages(dialogue):
         if not isinstance(content, str):
             continue
         if role == "player":
-            messages.append(("user", content))
+            messages.append(HumanMessage(content=content))
         elif role == "narrator":
-            messages.append(("assistant", content))
+            messages.append(AIMessage(content=content))
     return messages
 
 
 def _classification_to_system_note(classification: str) -> str | None:
+    """Get system note for player's progress classification."""
     if not isinstance(classification, str):
         return None
     normalized = classification.strip().upper()
@@ -85,6 +79,9 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
     """
     Generate a terse, in-universe terminal response for the player using LLM.
     Output is plain text, no meta commentary, no emojis, no explanations.
+    
+    For the initial narration (when dialogue is empty), uses a special opening prompt
+    to set the scene before any player interaction.
     
     Args:
         user_input: The player's input.
@@ -100,30 +97,51 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
         narration_prompt = level.narration_prompt or ""
         dialogue = state.vibe.dialogue or []
         last_classification = state.vibe.last_evaluator_classification
-
-        messages = [
-            ("system", GENERAL_NARRATOR_RULES),
-        ]
-        if general_context:
-            messages.append(("system", "Level context:\n" + general_context))
-        if narration_prompt:
-            messages.append(("system", "Narration guidelines:\n" + narration_prompt))
-        classification_note = _classification_to_system_note(last_classification)
-        if classification_note:
-            messages.append(("system", classification_note))
-        messages.extend([
-            ("system", "Game state:\n" + urgency),
-        ])
-        messages.extend(_dialogue_to_messages(dialogue))
-
-        chain = _build_chain(messages)
-        raw = chain.invoke({})
         
-        if raw is None:
+        is_initial = len(dialogue) == 0
+
+        # Build system context
+        system_parts = []
+        system_parts.append(INITIAL_NARRATOR_RULES if is_initial else GENERAL_NARRATOR_RULES)
+        
+        if general_context:
+            system_parts.append("Level context:\n" + general_context)
+        
+        if narration_prompt:
+            system_parts.append("Narration guidelines:\n" + narration_prompt)
+        
+        if not is_initial:
+            classification_note = _classification_to_system_note(last_classification)
+            if classification_note:
+                system_parts.append(classification_note)
+        
+        system_parts.append("Current urgency: " + urgency)
+        system_message = "\n\n".join(system_parts)
+
+        # Build LLM messages
+        lc_messages = [SystemMessage(content=system_message)]
+        lc_messages.extend(_dialogue_to_messages(dialogue))
+        
+        # Add current user input or initial prompt
+        if is_initial:
+            lc_messages.append(HumanMessage(content="Begin the narration."))
+        elif user_input.strip():
+            lc_messages.append(HumanMessage(content=user_input))
+        else:
+            lc_messages.append(HumanMessage(content="Continue narrating."))
+
+        # Invoke LLM
+        llm = _get_llm()
+        LOG.debug(f"Invoking narrator LLM with {len(lc_messages)} messages")
+        
+        result = llm.invoke(lc_messages)
+        raw = result.content if hasattr(result, 'content') else str(result)
+        LOG.debug(f"Narrator LLM returned: {repr(raw)}")
+        
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
             raise RuntimeError("Narrator LLM returned no output")
-        text = raw.strip()
-        return Narration(text=text)
+        
+        return Narration(text=raw.strip())
     except Exception as exc:
         LOG.error("Narrator LLM failed: %s", exc)
-        # Fallback: minimal error message
         return Narration(text="[narration unavailable]")

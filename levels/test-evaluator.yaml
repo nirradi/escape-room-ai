@@ -1,0 +1,6 @@
+level_id: 999
+title: Test Evaluator Level
+context: You are in a mysterious escape room. Find a way out.
+narration_prompt: null
+key_player_requirement: Understand that the door is locked and you need to find a key to open it.
+max_turns: 10

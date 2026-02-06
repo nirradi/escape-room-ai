@@ -23,6 +23,19 @@ from enum import Enum
 from game.narrate import Narration
 from game import level as level_mod
 
+# ANSI color codes for narrator output
+COLOR_NARRATOR = '\033[36m'  # Cyan
+COLOR_RESET = '\033[0m'      # Reset to default
+
+
+def print_to_player(text: str) -> None:
+	"""Print colored text for player-facing narrator output.
+	
+	Args:
+		text: The text to print in narrator color (cyan).
+	"""
+	print(f"{COLOR_NARRATOR}{text}{COLOR_RESET}")
+
 
 def get_evaluator(evaluator_type: str = "llm"):
 	"""Return the appropriate evaluator function based on type.
@@ -156,19 +169,28 @@ def render_strict_state(state: state_mod.GameState) -> None:
     LOG.debug(json.dumps(strict_dict, indent=2))
 
 
-def main(evaluator_type: str = "llm", narrator_type: str = "llm") -> None:
+def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: str = "bobs-plan.yaml") -> None:
 	"""Run the main game loop.
 
 	Args:
 		evaluator_type: "stub" or "llm" (default, uses LLM evaluator).
 		narrator_type: "stub" or "llm" (default, uses LLM narrator).
+		level_name: Name of the level file to load (default: "bobs-plan.yaml").
 	"""
 
-	LOG.info("Starting game loop with evaluator_type=%s, narrator_type=%s", evaluator_type, narrator_type)
+	LOG.info("Starting game loop with evaluator_type=%s, narrator_type=%s, level_name=%s", evaluator_type, narrator_type, level_name)
 	evaluator = get_evaluator(evaluator_type)
 	narrator = get_narrator(narrator_type)
-	level = level_mod.load_level(Path("levels") / "bobs-plan.yaml")
+	level = level_mod.load_level(Path("levels") / level_name)
 	state = state_mod.create_initial_state()
+
+	# Generate initial narration before the game loop starts
+	initial_narration = narrator("", state, level)
+	print_to_player(initial_narration.text)
+	
+	# Initialize dialogue history with the opening narration
+	initial_dialogue = [{"role": "narrator", "content": initial_narration.text}]
+	state = apply_patch(state, {"vibe": {"dialogue": initial_dialogue}}).state
 
 	while True:
 		try:
@@ -178,10 +200,19 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm") -> None:
 			break
 
 		# Understand whether the player is making progress towards the solution or not
-		classification = evaluator(user_input, state, level)
+		try:
+			classification = evaluator(user_input, state, level)
+		except Exception as exc:
+			LOG.error("Evaluator failed, aborting game: %s", exc)
+			print_to_player(f"FATAL ERROR: Evaluator failed. Game aborted.")
+			raise SystemExit(1)
 
 		# Based on the classification, generate a patch to update the game state
-		new_game_counter = state.strict.gameCounter + 1
+		# don't advance gameCounter on INVALID classification
+		new_game_counter = state.strict.gameCounter
+		if classification.level != "INVALID":
+			new_game_counter += 1
+
 		urgency = _calculate_urgency(new_game_counter, level.max_turns)
 		patch = classification_to_patch(classification.level, state.strict.solutionConfidenceScore) or {}
 		strict_patch = patch.get("strict") or {}
@@ -203,15 +234,15 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm") -> None:
 		# Check win/lose conditions before narrating
 		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
-			print("WIN CONDITION MET — Level complete.")
+			print_to_player("WIN CONDITION MET — Level complete.")
 			break
 		if level_result == LevelResult.TIMEOUT_FAIL:
-			print("FAILURE: Maximum game counter reached.")
+			print_to_player("FAILURE: Maximum game counter reached.")
 			break
 
 		# Use the selected narrator to generate narration
 		narration = narrator(user_input, state, level)
-		print(narration.text)
+		print_to_player(narration.text)
 		
 		# Add both player and narrator turns to dialogue history
 		base_dialogue = state.vibe.dialogue or []
@@ -240,9 +271,14 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 		choices=["stub", "llm"],
 		help="Narrator type",
 	)
+	parser.add_argument(
+		"--level",
+		default=os.getenv("LEVEL_NAME", "bobs-plan.yaml"),
+		help="Name of the level file to load (default: bobs-plan.yaml)",
+	)
 	return parser.parse_args(argv)
 
 
 if __name__ == '__main__':
 	args = _parse_args()
-	main(evaluator_type=args.evaluator_type, narrator_type=args.narrator_type)
+	main(evaluator_type=args.evaluator_type, narrator_type=args.narrator_type, level_name=args.level)

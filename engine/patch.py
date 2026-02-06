@@ -28,6 +28,7 @@ CLASSIFICATION_SCORE_DELTAS = {
     "PARTIAL_UNDERSTANDING": 0.10,
     "NO_SIGNAL": 0.0,
     "MISUNDERSTANDING": -0.15,
+    "INVALID": 0.0,  # No score change for invalid LLM output
 }
 
 

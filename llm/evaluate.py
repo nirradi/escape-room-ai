@@ -7,71 +7,71 @@ Uses LangChain to structure prompts and invoke LLM classification.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Dict
 import logging
 
 from engine.state import GameState
 from game.level import Level
 from .tools import load_model_config, load_prompt
+from langchain_ollama import ChatOllama  # type: ignore
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 
 LOG = logging.getLogger(__name__)
 
+
+class UnderstandingLevel(str, Enum):
+    """Valid classification levels for player understanding."""
+    CLEAR_UNDERSTANDING = "CLEAR_UNDERSTANDING"
+    PARTIAL_UNDERSTANDING = "PARTIAL_UNDERSTANDING"
+    NO_SIGNAL = "NO_SIGNAL"
+    MISUNDERSTANDING = "MISUNDERSTANDING"
+    INVALID = "INVALID"  # Internal only: not shown to LLM, used when output format is invalid
+
+
 MODEL_CFG: Dict[str, Any] = load_model_config(key="evaluator")
 SYSTEM_RULES: str = load_prompt("evaluate")
+
+# Generate evaluation prompt from enum values (exclude INVALID - internal only)
+_VALID_TOKENS = "\n".join(level.value for level in UnderstandingLevel if level != UnderstandingLevel.INVALID)
+DEFAULT_EVALUATION_PROMPT: str = f"""Evaluate the player's current understanding.
+Output must be exactly one of the following tokens and nothing else:
+
+{_VALID_TOKENS}
+
+Any additional text is invalid."""
 
 
 @dataclass
 class Classification:
     """Represents a player understanding classification."""
-    level: str  # CLEAR_UNDERSTANDING, PARTIAL_UNDERSTANDING, NO_SIGNAL, MISUNDERSTANDING
+    level: str  # One of UnderstandingLevel enum values
 
 
-def _build_chain():
-    """Build and return the LangChain evaluator classification chain.
-    
-    Returns:
-        A chain that accepts a dict with:
-        - system_rules: General classification rules
-        - level_context: Background and setting information
-        - key_requirement: The main question/concept the player should understand
-        - dialog: History of dialog exchanges
-        - latest_input: The current player input
-        - instructions: Output format instructions
-        
-    Raises:
-        RuntimeError: If langchain_ollama/langchain_core are missing.
-    """
-    try:
-        from langchain_ollama import ChatOllama  # type: ignore
-        from langchain_core.prompts import ChatPromptTemplate  # type: ignore
-        from langchain_core.output_parsers import StrOutputParser  # type: ignore
-    except Exception as exc:
-        raise RuntimeError("langchain_ollama or langchain_core not available") from exc
-
-    # Extract model name from config
+def _get_llm() -> ChatOllama:
+    """Create and return a ChatOllama instance configured for evaluation."""
     model = None
     if isinstance(MODEL_CFG, dict):
         model = MODEL_CFG.get("model") or MODEL_CFG.get("name")
-
-    # Build chat template with multiple structured inputs
-    prompt_tpl = ChatPromptTemplate.from_messages([
-        ("system", "{system_rules}"),
-        ("system", "Level context:\n{level_context}"),
-        ("system", "Key player requirement (what they must understand):\n{key_requirement}"),
-        ("system", "Dialog:\n{dialog}"),
-        ("system", "{instructions}"),
-        ("player", "{latest_input}"),
-    ])
-
-    llm = ChatOllama(model=model) if model else ChatOllama()
-    chain = prompt_tpl | llm | StrOutputParser()
-
-    return chain
+    return ChatOllama(model=model) if model else ChatOllama()
 
 
-# Build chain once at module initialization
-_EVALUATOR_CHAIN = _build_chain()
+def _dialogue_to_messages(dialogue):
+    """Convert dialogue history to LangChain message objects."""
+    messages = []
+    for turn in dialogue:
+        if not isinstance(turn, dict):
+            continue
+        role = turn.get("role")
+        content = turn.get("content")
+        if not isinstance(content, str):
+            continue
+        if role == "player":
+            messages.append(HumanMessage(content=content))
+        elif role == "narrator":
+            messages.append(AIMessage(content=content))
+    return messages
 
 
 def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
@@ -84,36 +84,69 @@ def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
         
     Returns:
         Classification: A classification object with level attribute.
+        
+    Raises:
+        Exception: Re-raises any exception to abort the game on evaluator failure.
     """
     try:
-        # Build dialog from player history
-        dialog = "\n".join(state.player_history) if state.player_history else ""
+        dialogue = state.vibe.dialogue or []
         level_context = level.context or ""
         key_requirement = level.key_player_requirement or ""
         
-        # Invoke chain with structured inputs
-        classification = _EVALUATOR_CHAIN.invoke({
-            "system_rules": SYSTEM_RULES,
-            "level_context": level_context,
-            "key_requirement": key_requirement,
-            "dialog": dialog,
-            "latest_input": user_input,
-            "instructions": "Return only one of the following: CLEAR_UNDERSTANDING, PARTIAL_UNDERSTANDING, NO_SIGNAL, MISUNDERSTANDING."
-        })
+        # Build system message with context
+        system_parts = []
+        system_parts.append(SYSTEM_RULES)
         
-        if classification is None:
+        if level_context:
+            system_parts.append("Level context:\n" + level_context)
+        
+        if key_requirement:
+            system_parts.append("Key player requirement (what they must understand):\n" + key_requirement)
+        
+        valid_tokens_str = " | ".join(level.value for level in UnderstandingLevel)
+        system_parts.append(f"⚠ CRITICAL: You MUST respond with ONLY ONE of these four words, nothing else:\n{valid_tokens_str}")
+        system_message = "\n\n".join(system_parts)
+        
+        # Build LLM messages
+        lc_messages = [SystemMessage(content=system_message)]
+        lc_messages.extend(_dialogue_to_messages(dialogue))
+        
+        # Add current user input
+        if user_input.strip():
+            lc_messages.append(HumanMessage(content=user_input))
+        else:
+            lc_messages.append(HumanMessage(content=DEFAULT_EVALUATION_PROMPT))
+
+        # Invoke LLM
+        llm = _get_llm()
+        LOG.debug(f"Invoking evaluator LLM with {len(lc_messages)} messages")
+        
+        result = llm.invoke(lc_messages)
+        raw = result.content if hasattr(result, 'content') else str(result)
+        LOG.debug(f"Evaluator LLM returned: {repr(raw)}")
+        
+        if raw is None:
             raise RuntimeError("Evaluator LLM returned no output")
         
         # Clean and validate output
-        result = classification.strip().upper()
-        valid_levels = {"CLEAR_UNDERSTANDING", "PARTIAL_UNDERSTANDING", "NO_SIGNAL", "MISUNDERSTANDING"}
+        raw_str = raw.strip().upper()
+        # Exclude INVALID from valid LLM outputs (it's internal only)
+        valid_levels = {level.value for level in UnderstandingLevel if level != UnderstandingLevel.INVALID}
         
-        if result not in valid_levels:
-            LOG.warning("Invalid classification '%s', defaulting to NO_SIGNAL", result)
-            result = "NO_SIGNAL"
+        # Try exact match first
+        if raw_str in valid_levels:
+            return Classification(level=raw_str)
         
-        return Classification(level=result)
+        # If not an exact match, search for any valid keyword in the response
+        for keyword in valid_levels:
+            if keyword in raw_str:
+                LOG.debug(f"Found '{keyword}' within response, using it")
+                return Classification(level=keyword)
+        
+        # If no valid keyword found, return INVALID (LLM format error)
+        LOG.warning("No valid classification found in '%s', returning INVALID", raw_str[:100])
+        return Classification(level=UnderstandingLevel.INVALID.value)
     except Exception as exc:
         LOG.error("Evaluator LLM failed: %s", exc)
-        # Fallback: assume no signal on error
-        return Classification(level="NO_SIGNAL")
+        # Re-raise to abort game on evaluator failure
+        raise
