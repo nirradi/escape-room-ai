@@ -163,10 +163,10 @@ class TestStateProgression:
         
         # Classification should be one of the expected values
         valid_classifications = {
-            "CLEAR_UNDERSTANDING",
-            "PARTIAL_UNDERSTANDING", 
-            "NO_SIGNAL",
-            "MISUNDERSTANDING"
+            "COMMITTING_TO_CORRECT_MODEL",
+            "SOME_UNDERSTANDING", 
+            "NEUTRAL_ACTION",
+            "COMMITTING_TO_INCORRECT_MODEL"
         }
         for state in states_with_classification:
             assert state.vibe.last_evaluator_classification in valid_classifications
@@ -191,7 +191,7 @@ class TestStateProgression:
         # Confidence should increase from initial 0.0
         initial_confidence = 0.0
         final_confidence = captured_states[-1].strict.solutionConfidenceScore
-        assert final_confidence > initial_confidence, "Confidence should increase on CLEAR_UNDERSTANDING"
+        assert final_confidence > initial_confidence, "Confidence should increase on COMMITTING_TO_CORRECT_MODEL"
         # Should reach win condition (0.5)
         assert final_confidence >= 0.5, "Should reach win condition after 2 CLEAR inputs"
 

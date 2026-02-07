@@ -3,11 +3,12 @@
 Benchmark script for evaluate() function.
 
 Loads test cases from CSV and level from YAML to run a structured test suite.
-Tests all 4 classification outcomes with 15 test cases (including 5 enhanced PARTIAL_UNDERSTANDING cases).
+Tests all 4 classification outcomes with various test cases.
 """
 
 import sys
 import csv
+import argparse
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
@@ -26,177 +27,8 @@ class TestCase:
     """Represents a single test case for the evaluator."""
     case_id: int
     description: str
-    dialogue_history: list
     player_input: str
     expected_classification: str
-
-
-# Dialogue history templates for each test case
-DIALOGUE_TEMPLATES = {
-    1: [
-        {"role": "narrator", "content": "You find a locked door on the wall."},
-        {"role": "player", "content": "I see a locked door"},
-        {"role": "narrator", "content": "Yes, it appears to require a key."},
-    ],
-    2: [
-        {"role": "narrator", "content": "The door has a keyhole. A rusty key is on the floor."},
-        {"role": "player", "content": "Where's the lock?"},
-        {"role": "narrator", "content": "The lock is on the door, in the keyhole."},
-    ],
-    3: [
-        {"role": "narrator", "content": "A heavy wooden door blocks your path. You find an ornate key."},
-        {"role": "player", "content": "Is this door locked?"},
-        {"role": "narrator", "content": "Yes, sealed tight. The key might work."},
-        {"role": "player", "content": "I'll take the key and try it"},
-    ],
-    4: [
-        {"role": "narrator", "content": "A locked door stands before you."},
-        {"role": "player", "content": "I see a locked door"},
-    ],
-    5: [
-        {"role": "narrator", "content": "You find a key on the table."},
-        {"role": "player", "content": "A key! That's useful."},
-        {"role": "narrator", "content": "Yes, it's ornate and heavy."},
-    ],
-    6: [
-        {"role": "narrator", "content": "The door is wooden with a large lock. A key rests on a shelf."},
-        {"role": "player", "content": "I pick up the key"},
-        {"role": "narrator", "content": "You now hold the brass key."},
-    ],
-    7: [
-        {"role": "narrator", "content": "You see an ornate door and hold a golden key."},
-        {"role": "player", "content": "What do I do with this key?"},
-        {"role": "narrator", "content": "You could try using it on locks you find."},
-    ],
-    8: [
-        {"role": "narrator", "content": "Before you stands a locked wooden door and in your hand is a key."},
-        {"role": "player", "content": "I have this key but I'm not sure what it opens"},
-        {"role": "narrator", "content": "Perhaps explore and see."},
-    ],
-    9: [
-        {"role": "narrator", "content": "The room has a locked metal door. On the ground lies an ornate key."},
-        {"role": "player", "content": "There's a key here and a locked door there"},
-        {"role": "narrator", "content": "Indeed."},
-    ],
-    10: [
-        {"role": "narrator", "content": "You're in a room with a locked door. You pick up a silver key."},
-        {"role": "player", "content": "I found this key"},
-        {"role": "narrator", "content": "What will you do with it?"},
-    ],
-    11: [
-        {"role": "narrator", "content": "A sturdy door with a keyhole blocks your exit. A key rests nearby."},
-        {"role": "player", "content": "I examine the key closely"},
-        {"role": "narrator", "content": "It appears old but well-crafted."},
-    ],
-    12: [
-        {"role": "narrator", "content": "You're trapped in a room with a locked door."},
-        {"role": "player", "content": "What's in here?"},
-    ],
-    13: [
-        {"role": "narrator", "content": "A locked door blocks your exit. You see a key nearby."},
-        {"role": "player", "content": "What time is it?"},
-        {"role": "narrator", "content": "You don't have a watch."},
-    ],
-    14: [
-        {"role": "narrator", "content": "You stand before a locked wooden door. A key is on the ground."},
-        {"role": "player", "content": "I'll break down the door with my bare hands"},
-        {"role": "narrator", "content": "The door is too strong, your hands hurt."},
-    ],
-    15: [
-        {"role": "narrator", "content": "A locked door with a keyhole. A key sits on the table."},
-        {"role": "player", "content": "I need to find the key to unlock this door"},
-        {"role": "narrator", "content": "Correct, and you have found it."},
-        {"role": "player", "content": "Now I'll use it"},
-    ],
-    # Stress tests: Long histories (10-15 inputs)
-    24: [
-        {"role": "narrator", "content": "You're in a dim room with stone walls."},
-        {"role": "player", "content": "Where am I?"},
-        {"role": "narrator", "content": "You're in a locked room."},
-        {"role": "player", "content": "I look around"},
-        {"role": "narrator", "content": "You see a door and a table."},
-        {"role": "player", "content": "What's on the table?"},
-        {"role": "narrator", "content": "A brass key rests on it."},
-        {"role": "player", "content": "I pick up the key"},
-        {"role": "narrator", "content": "The key is cold and heavy."},
-        {"role": "player", "content": "I examine the door"},
-        {"role": "narrator", "content": "The door has a keyhole."},
-        {"role": "player", "content": "I move closer to the door"},
-        {"role": "narrator", "content": "You're now at the door."},
-        {"role": "player", "content": "I look at the keyhole"},
-        {"role": "narrator", "content": "It appears to match the key."},
-        {"role": "player", "content": "Is there anything else in the room?"},
-        {"role": "narrator", "content": "No, just the door and table."},
-        {"role": "player", "content": "I check if the door is locked"},
-        {"role": "narrator", "content": "Yes, it won't budge."},
-        {"role": "player", "content": "I hold the key up to the keyhole"},
-        {"role": "narrator", "content": "They look compatible."},
-    ],
-    25: [
-        {"role": "narrator", "content": "You wake up in a locked room."},
-        {"role": "player", "content": "What happened?"},
-        {"role": "narrator", "content": "You don't remember."},
-        {"role": "player", "content": "I stand up"},
-        {"role": "narrator", "content": "You're on your feet."},
-        {"role": "player", "content": "I scan the room"},
-        {"role": "narrator", "content": "There's a wooden door and a shelf."},
-        {"role": "player", "content": "What's on the shelf?"},
-        {"role": "narrator", "content": "A silver key."},
-        {"role": "player", "content": "I walk to the shelf"},
-        {"role": "narrator", "content": "You're at the shelf."},
-        {"role": "player", "content": "I grab the key"},
-        {"role": "narrator", "content": "You now hold the key."},
-        {"role": "player", "content": "I walk around the room"},
-        {"role": "narrator", "content": "The room is small with just the door and shelf."},
-        {"role": "player", "content": "I approach the door"},
-        {"role": "narrator", "content": "It's a heavy wooden door."},
-        {"role": "player", "content": "I test the door handle"},
-        {"role": "narrator", "content": "It's locked."},
-        {"role": "player", "content": "I notice the keyhole"},
-        {"role": "narrator", "content": "Yes, there's a keyhole in the door."},
-        {"role": "player", "content": "Maybe I should check if this key fits"},
-        {"role": "narrator", "content": "That seems logical."},
-    ],
-    26: [
-        {"role": "narrator", "content": "You find yourself trapped in a chamber."},
-        {"role": "player", "content": "This is strange"},
-        {"role": "narrator", "content": "Indeed."},
-        {"role": "player", "content": "I explore the area"},
-        {"role": "narrator", "content": "You see a door blocking the exit."},
-        {"role": "player", "content": "Can I open it?"},
-        {"role": "narrator", "content": "It's locked tight."},
-        {"role": "player", "content": "I search for clues"},
-        {"role": "narrator", "content": "You find a key on the ground."},
-        {"role": "player", "content": "A key! That could be useful"},
-        {"role": "narrator", "content": "Very observant."},
-        {"role": "player", "content": "I pick it up carefully"},
-        {"role": "narrator", "content": "The key is golden and ornate."},
-        {"role": "player", "content": "I walk back to the door"},
-        {"role": "narrator", "content": "You stand before the door."},
-    ],
-    27: [
-        {"role": "narrator", "content": "Welcome to the escape room."},
-        {"role": "player", "content": "I look for a way out"},
-        {"role": "narrator", "content": "The room has a locked door."},
-        {"role": "player", "content": "How do I get out?"},
-        {"role": "narrator", "content": "You'll need to figure that out."},
-        {"role": "player", "content": "I search the floor"},
-        {"role": "narrator", "content": "Nothing on the floor."},
-        {"role": "player", "content": "I check the walls"},
-        {"role": "narrator", "content": "Solid stone walls."},
-        {"role": "player", "content": "I look up"},
-        {"role": "narrator", "content": "Just a ceiling, no exit."},
-        {"role": "player", "content": "I inspect the door more closely"},
-        {"role": "narrator", "content": "It has a standard keyhole."},
-        {"role": "player", "content": "Where's the key?"},
-        {"role": "narrator", "content": "Look around more carefully."},
-        {"role": "player", "content": "I check behind things"},
-        {"role": "narrator", "content": "You find a key hidden behind a loose stone."},
-        {"role": "player", "content": "Found it!"},
-        {"role": "narrator", "content": "Good work."},
-        {"role": "player", "content": "This key must open the door"},
-    ],
-}
 
 
 def load_test_cases_from_csv(csv_path: Path) -> list[TestCase]:
@@ -206,11 +38,9 @@ def load_test_cases_from_csv(csv_path: Path) -> list[TestCase]:
     with open(csv_path, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            case_id = int(row['case_id'])
             test_cases.append(TestCase(
-                case_id=case_id,
+                case_id=int(row['case_id']),
                 description=row['description'],
-                dialogue_history=DIALOGUE_TEMPLATES.get(case_id, []),
                 player_input=row['player_input'],
                 expected_classification=row['expected_classification'],
             ))
@@ -229,14 +59,14 @@ def run_test_case(test_case: TestCase, level) -> tuple[bool, Optional[str]]:
     
     state = GameState(
         strict=StrictState(
-            gameCounter=len(test_case.dialogue_history),
+            gameCounter=1,
             level=1,
             currentLevelAttempsts=1,
             solutionConfidenceScore=0.0,
         ),
         vibe=VibeState(
             name="player",
-            dialogue=test_case.dialogue_history,
+            dialogue=[],  # Empty dialogue history - focusing on current input only
             urgency="MODERATE",
             last_evaluator_classification=None,
         )
@@ -252,36 +82,42 @@ def run_test_case(test_case: TestCase, level) -> tuple[bool, Optional[str]]:
         return (False, None)
 
 
-def benchmark_evaluate():
-    """Run all test cases from CSV and report statistics."""
+def benchmark_evaluate(csv_path: Path, level_path: Path, benchmark_name: str = "EVALUATE BENCHMARK"):
+    """Run all test cases from CSV and report statistics.
+    
+    Args:
+        csv_path: Path to CSV file with test cases
+        level_path: Path to level YAML file
+        benchmark_name: Name of the benchmark for display
+    """
     
     print("=" * 80)
-    print("EVALUATE BENCHMARK - COLLAPSED EVIDENCE FORMAT")
+    print(f"{benchmark_name}")
     print("=" * 80)
     print()
     
     # Load level from YAML
-    level_path = Path(project_root) / "levels" / "test-evaluator.yaml"
     level = load_level(level_path)
     print(f"Loaded level: {level.title}")
+    print(f"Level path: {level_path}")
     print()
     
     # Load test cases from CSV
-    csv_path = Path(__file__).parent / "benchmark_evaluate_testcases.csv"
     test_cases = load_test_cases_from_csv(csv_path)
     print(f"Loaded {len(test_cases)} test cases from CSV")
+    print(f"CSV path: {csv_path}")
     print("=" * 80)
     print()
     
     # Valid tokens for format compliance checking
-    VALID_TOKENS = {"CLEAR_UNDERSTANDING", "PARTIAL_UNDERSTANDING", "NO_SIGNAL", "MISUNDERSTANDING"}
+    VALID_TOKENS = {"COMMITTING_TO_CORRECT_MODEL", "SOME_UNDERSTANDING", "NEUTRAL_ACTION", "COMMITTING_TO_INCORRECT_MODEL"}
     
     # Track results by classification
     results = {
-        "CLEAR_UNDERSTANDING": {"passed": 0, "total": 0},
-        "PARTIAL_UNDERSTANDING": {"passed": 0, "total": 0},
-        "NO_SIGNAL": {"passed": 0, "total": 0},
-        "MISUNDERSTANDING": {"passed": 0, "total": 0},
+        "COMMITTING_TO_CORRECT_MODEL": {"passed": 0, "total": 0},
+        "SOME_UNDERSTANDING": {"passed": 0, "total": 0},
+        "NEUTRAL_ACTION": {"passed": 0, "total": 0},
+        "COMMITTING_TO_INCORRECT_MODEL": {"passed": 0, "total": 0},
     }
     
     total_passed = 0
@@ -380,7 +216,7 @@ def benchmark_evaluate():
     print(f"{'Classification':<25} {'Passed':<10} {'Total':<10} {'Rate':<10}")
     print("-" * 80)
     
-    for classification in ["CLEAR_UNDERSTANDING", "PARTIAL_UNDERSTANDING", "NO_SIGNAL", "MISUNDERSTANDING"]:
+    for classification in ["COMMITTING_TO_CORRECT_MODEL", "SOME_UNDERSTANDING", "NEUTRAL_ACTION", "COMMITTING_TO_INCORRECT_MODEL"]:
         passed = results[classification]["passed"]
         total = results[classification]["total"]
         rate = f"{passed}/{total}" if total > 0 else "0/0"
@@ -396,11 +232,141 @@ def benchmark_evaluate():
                len(narrative_failures) == 0 and  # No narrative outputs
                len(determinism_failures) == 0)  # Must be deterministic
     
-    return success
+    # Return stats for aggregation
+    return {
+        "success": success,
+        "total_tests": total_tests,
+        "total_passed": total_passed,
+        "format_compliance": format_compliance,
+        "narrative_failures": len(narrative_failures),
+        "determinism_failures": len(determinism_failures),
+        "results": results,
+    }
+
+
+def print_combined_summary(all_stats: list):
+    """Print a combined summary of all benchmark runs."""
+    print("=" * 80)
+    print("COMBINED SUMMARY - ALL BENCHMARKS")
+    print("=" * 80)
+    print()
+    
+    # Calculate totals
+    total_tests_all = sum(s["total_tests"] for s in all_stats)
+    total_passed_all = sum(s["total_passed"] for s in all_stats)
+    overall_accuracy = (total_passed_all / total_tests_all * 100) if total_tests_all > 0 else 0
+    
+    # Per-benchmark summary
+    print(f"{'Benchmark':<35} {'Passed':<12} {'Total':<12} {'Accuracy':<12} {'Status':<10}")
+    print("-" * 80)
+    for stats in all_stats:
+        name = stats["benchmark_name"].replace(" BENCHMARK", "")
+        passed = stats["total_passed"]
+        total = stats["total_tests"]
+        accuracy = (passed / total * 100) if total > 0 else 0
+        status = "✓ PASS" if stats["success"] else "✗ FAIL"
+        print(f"{name:<35} {passed:<12} {total:<12} {accuracy:<11.1f}% {status:<10}")
+    
+    print("-" * 80)
+    print(f"{'TOTAL':<35} {total_passed_all:<12} {total_tests_all:<12} {overall_accuracy:<11.1f}%")
+    print()
+    
+    # Quality metrics
+    total_format_issues = sum(s["total_tests"] for s in all_stats) - sum(s["total_tests"] * s["format_compliance"] / 100 for s in all_stats)
+    total_narrative_failures = sum(s["narrative_failures"] for s in all_stats)
+    total_determinism_failures = sum(s["determinism_failures"] for s in all_stats)
+    
+    print(f"{'QUALITY METRICS':<35}")
+    print(f"  Format compliance issues:  {int(total_format_issues)}")
+    print(f"  Narrative output failures: {total_narrative_failures}")
+    print(f"  Determinism failures:      {total_determinism_failures}")
+    print()
+    
+    # Aggregate by classification type
+    print(f"{'AGGREGATE BY CLASSIFICATION TYPE':<35}")
+    print("-" * 80)
+    print(f"{'Classification':<30} {'Passed':<12} {'Total':<12} {'Rate':<12}")
+    print("-" * 80)
+    
+    for classification in ["COMMITTING_TO_CORRECT_MODEL", "SOME_UNDERSTANDING", "NEUTRAL_ACTION", "COMMITTING_TO_INCORRECT_MODEL"]:
+        total_passed_class = sum(s["results"][classification]["passed"] for s in all_stats)
+        total_tests_class = sum(s["results"][classification]["total"] for s in all_stats)
+        rate = f"{(total_passed_class/total_tests_class)*100:.0f}%" if total_tests_class > 0 else "N/A"
+        print(f"{classification:<30} {total_passed_class:<12} {total_tests_class:<12} {rate:<12}")
+    
+    print("=" * 80)
 
 
 if __name__ == "__main__":
-    success = benchmark_evaluate()
-    sys.exit(0 if success else 1)
+    parser = argparse.ArgumentParser(description="Run evaluate() benchmark tests")
+    parser.add_argument(
+        "--csv",
+        type=Path,
+        help="Path to CSV file with test cases (default: benchmark_evaluate_testcases.csv)"
+    )
+    parser.add_argument(
+        "--level",
+        type=Path,
+        help="Path to level YAML file (default: levels/test-evaluator.yaml)"
+    )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default="EVALUATE BENCHMARK",
+        help="Name of the benchmark for display"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run all available benchmarks"
+    )
+    
+    args = parser.parse_args()
+    
+    if args.all:
+        # Run all benchmarks
+        benchmarks = [
+            {
+                "csv": Path(__file__).parent / "benchmark_evaluate_testcases.csv",
+                "level": project_root / "levels" / "test-evaluator.yaml",
+                "name": "TEST-EVALUATOR BENCHMARK"
+            },
+            {
+                "csv": Path(__file__).parent / "benchmark_between_floors.csv",
+                "level": project_root / "levels" / "between-floors.yaml",
+                "name": "BETWEEN-FLOORS BENCHMARK"
+            },
+            {
+                "csv": Path(__file__).parent / "benchmark_ice_cream.csv",
+                "level": project_root / "levels" / "level_id: ice-cream.yaml",
+                "name": "ICE-CREAM BENCHMARK"
+            },
+        ]
+        
+        all_stats = []
+        for i, benchmark in enumerate(benchmarks):
+            if i > 0:
+                print("\n\n")  # Space between benchmarks
+            stats = benchmark_evaluate(
+                benchmark["csv"],
+                benchmark["level"],
+                benchmark["name"]
+            )
+            stats["benchmark_name"] = benchmark["name"]
+            all_stats.append(stats)
+        
+        # Print combined summary
+        print("\n\n")
+        print_combined_summary(all_stats)
+        
+        all_success = all(s["success"] for s in all_stats)
+        sys.exit(0 if all_success else 1)
+    else:
+        # Run single benchmark with specified or default paths
+        csv_path = args.csv if args.csv else Path(__file__).parent / "benchmark_evaluate_testcases.csv"
+        level_path = args.level if args.level else project_root / "levels" / "test-evaluator.yaml"
+        
+        stats = benchmark_evaluate(csv_path, level_path, args.name)
+        sys.exit(0 if stats["success"] else 1)
 
 

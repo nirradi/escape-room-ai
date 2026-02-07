@@ -23,10 +23,10 @@ LOG = logging.getLogger(__name__)
 
 class UnderstandingLevel(str, Enum):
     """Valid classification levels for player understanding."""
-    CLEAR_UNDERSTANDING = "CLEAR_UNDERSTANDING"
-    PARTIAL_UNDERSTANDING = "PARTIAL_UNDERSTANDING"
-    NO_SIGNAL = "NO_SIGNAL"
-    MISUNDERSTANDING = "MISUNDERSTANDING"
+    COMMITTING_TO_CORRECT_MODEL = "COMMITTING_TO_CORRECT_MODEL"
+    SOME_UNDERSTANDING = "SOME_UNDERSTANDING"
+    NEUTRAL_ACTION = "NEUTRAL_ACTION"
+    COMMITTING_TO_INCORRECT_MODEL = "COMMITTING_TO_INCORRECT_MODEL"
     INVALID = "INVALID"  # Internal only: not shown to LLM, used when output format is invalid
 
 

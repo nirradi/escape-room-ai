@@ -78,7 +78,7 @@ def benchmark_narrate():
         {"role": "narrator", "content": output_1},
         {"role": "player", "content": "Look around carefully"},
     ]
-    state.vibe.last_evaluator_classification = "PARTIAL_UNDERSTANDING"
+    state.vibe.last_evaluator_classification = "SOME_UNDERSTANDING"
     
     try:
         narration_2 = narrate("What do I see?", state, level)

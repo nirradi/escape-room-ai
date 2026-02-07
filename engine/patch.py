@@ -24,10 +24,10 @@ Patch = dict[str, Any]
 
 # Classification score adjustments
 CLASSIFICATION_SCORE_DELTAS = {
-    "CLEAR_UNDERSTANDING": 0.25,
-    "PARTIAL_UNDERSTANDING": 0.10,
-    "NO_SIGNAL": 0.0,
-    "MISUNDERSTANDING": -0.15,
+    "COMMITTING_TO_CORRECT_MODEL": 0.25,
+    "SOME_UNDERSTANDING": 0.10,
+    "NEUTRAL_ACTION": 0.0,
+    "COMMITTING_TO_INCORRECT_MODEL": -0.15,
     "INVALID": 0.0,  # No score change for invalid LLM output
 }
 
@@ -36,7 +36,7 @@ def classification_to_patch(classification_level: str, current_confidence: float
     """Convert a classification level to a patch that updates the confidence score.
     
     Args:
-        classification_level: One of CLEAR_UNDERSTANDING, PARTIAL_UNDERSTANDING, NO_SIGNAL, MISUNDERSTANDING.
+        classification_level: One of COMMITTING_TO_CORRECT_MODEL, SOME_UNDERSTANDING, NEUTRAL_ACTION, COMMITTING_TO_INCORRECT_MODEL.
         current_confidence: Current solutionConfidenceScore (0.0 to 1.0).
         
     Returns:

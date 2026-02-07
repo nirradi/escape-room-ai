@@ -15,7 +15,7 @@ from game.level import Level
 @dataclass
 class Classification:
     """Represents a player understanding classification."""
-    level: str  # CLEAR_UNDERSTANDING, PARTIAL_UNDERSTANDING, NO_SIGNAL, MISUNDERSTANDING
+	level: str  # COMMITTING_TO_CORRECT_MODEL, SOME_UNDERSTANDING, NEUTRAL_ACTION, COMMITTING_TO_INCORRECT_MODEL
 
 
 def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
@@ -30,8 +30,8 @@ def evaluate(user_input: str, state: GameState, level: Level) -> Classification:
 		Classification: A classification object with level attribute.
 	"""
 	if user_input == "increase confidence":
-		return Classification(level="CLEAR_UNDERSTANDING")
+		return Classification(level="COMMITTING_TO_CORRECT_MODEL")
 	elif user_input == "decrease confidence":
-		return Classification(level="MISUNDERSTANDING")
+		return Classification(level="COMMITTING_TO_INCORRECT_MODEL")
 	else:
-		return Classification(level="NO_SIGNAL")
+		return Classification(level="NEUTRAL_ACTION")

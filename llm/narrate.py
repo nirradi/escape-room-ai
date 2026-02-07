@@ -24,11 +24,11 @@ MODEL_CFG: Dict[str, Any] = load_model_config(key="narrator")
 GENERAL_NARRATOR_RULES: str = load_prompt("narrate")
 INITIAL_NARRATOR_RULES: str = load_prompt("narrate_initial")
 
-CLASSIFICATION_NOTES = {
-    "CLEAR_UNDERSTANDING": "The player is on the right track.",
-    "PARTIAL_UNDERSTANDING": "The player is picking up on some of the idea.",
-    "NO_SIGNAL": "The player is currently without proper direction.",
-    "MISUNDERSTANDING": "The player has missed the idea completely.",
+PROGRESS_FEEDBACK = {
+    "COMMITTING_TO_CORRECT_MODEL": "Provide subtle positive reinforcement - the player is making excellent progress toward solving the puzzle.",
+    "SOME_UNDERSTANDING": "Offer gentle encouragement - the player is heading in a promising direction.",
+    "NEUTRAL_ACTION": "Maintain neutral tension - the player hasn't found a clear path to the solution yet.",
+    "COMMITTING_TO_INCORRECT_MODEL": "Introduce subtle friction - the player's current approach is leading away from the solution.",
 }
 
 
@@ -65,14 +65,14 @@ def _dialogue_to_messages(dialogue):
     return messages
 
 
-def _classification_to_system_note(classification: str) -> str | None:
-    """Get system note for player's progress classification."""
+def _get_progress_feedback(classification: str) -> str | None:
+    """Get narrator guidance based on player's puzzle-solving progress."""
     if not isinstance(classification, str):
         return None
     normalized = classification.strip().upper()
     if not normalized:
         return None
-    return CLASSIFICATION_NOTES.get(normalized)
+    return PROGRESS_FEEDBACK.get(normalized)
 
 
 def narrate(user_input: str, state: GameState, level: Level) -> Narration:
@@ -111,9 +111,9 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
             system_parts.append("Narration guidelines:\n" + narration_prompt)
         
         if not is_initial:
-            classification_note = _classification_to_system_note(last_classification)
-            if classification_note:
-                system_parts.append(classification_note)
+            progress_guidance = _get_progress_feedback(last_classification)
+            if progress_guidance:
+                system_parts.append(progress_guidance)
         
         system_parts.append("Current urgency: " + urgency)
         system_message = "\n\n".join(system_parts)

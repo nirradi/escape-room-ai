@@ -1,0 +1,27 @@
+level_id: 4
+title: "Crying for Ice Cream"
+
+# General level context used by both narration and mutation
+context: |
+  The player is confronted with a mother and child, the mother has an ice cream cone and the child is crying for it. 
+  The ice cream has more than one flavor in a cone, and it looks delicious.
+  The player must decide how to respond to the situation.
+  When the mother offers the child the ice cream, the child continues to cry, indicating that they want something else. 
+  The player must find some solution to satisfy the child.
+  
+
+# Narration-specific guidelines
+narration_prompt: |
+  The narration should describe the scene in detail, including the emotions of the characters and the sensory experience of the ice cream. 
+  It should also provide hints about the possible solutions to the problem, such as offering a different flavor or sharing the ice cream with the child.
+  
+  
+
+# Key player requirement: the main question/concept they must grasp
+key_player_requirement: |
+  The child doesn't like ice cream but they like the cone. They want the cone but not the ice cream. 
+  Any solution that involves giving the child the ice cream will not work, as they will continue to cry. 
+  The player must find a way to give the child the cone without the ice cream.
+  
+# Optional: other metadata
+max_turns: 6
