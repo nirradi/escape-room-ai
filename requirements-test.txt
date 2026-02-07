@@ -1,0 +1,3 @@
+pytest>=7.0.0
+dataclasses-jsonschema>=2.15.0
+pyyaml>=6.0

@@ -5,3 +5,19 @@ The core engine runs in a fixed loop: player input → intent gate (LLM) → gam
 Each level defines its own unlock condition, narrative framing, and failure mode. Advancement requires the player to sufficiently convince the intent gate that they understand what the level requires, not merely that they used the correct words. Levels operate under a deterministic turn-based clock (e.g. a fixed number of player inputs). As the clock advances, narration escalates in urgency or explicitness. When the clock expires, the level resets and narrative memory is cleared, with the narrator explicitly signaling that the player did not yet grasp the requirement.
 
 Failure is treated as feedback, not punishment. Resets are intentional, legible events that reinforce the game’s core theme: understanding over execution. The system is designed to explore the boundary between player intent, AI interpretation, and hard game rules, while remaining fully text-based and mechanically transparent to the engine.
+
+## Running locally
+
+For local development with LLM-backed narration and evaluation, you must have Ollama running in the background so the models can be called. Start Ollama before launching the game loop. Download: https://ollama.com/download
+
+The recommended run configuration is defined in [ .vscode/launch.json ](.vscode/launch.json). It launches the game loop with the LLM evaluator and narrator, plus the default level.
+
+
+### Command line (equivalent)
+
+```bash
+python game/loop.py \
+	--evaluator-type llm \
+	--narrator-type llm \
+	--level between-floors.yaml
+```
