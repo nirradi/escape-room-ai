@@ -14,7 +14,7 @@ from game.level import Level
 
 @dataclass
 class Classification:
-    """Represents a player understanding classification."""
+	"""Represents a player understanding classification."""
 	level: str  # COMMITTING_TO_CORRECT_MODEL, SOME_UNDERSTANDING, NEUTRAL_ACTION, COMMITTING_TO_INCORRECT_MODEL
 
 

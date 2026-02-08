@@ -37,7 +37,7 @@ Abstract examples (NOT player text):
 - The action could still be exploratory or reversible
 
 Abstract examples:
-- If the key requirement is to USE A UNIQUE OBJECT IN A SPECIFIC SETTING, the player picks up the object but does not apply it yet
+- If the key requirement is to USE A UNIQUE OBJECT IN A SPECIFIC SETTING, the player picks up the object but does not apply it
 - If the key requirement is to WAIT, the player tries pausing briefly or asks what happens if they do nothing.
 - If the key requirement is to ARGUE, the player considers pushing back, or indicates general uncertainty
 - If the key requirement is to DISTRUST, the player expresses mild suspicion without acting on it.
@@ -71,9 +71,9 @@ OUTPUT RULES (CRITICAL)
 ────────────────────────────────────
 
 - Output EXACTLY ONE of the following tokens:
-  COMMITTING_TO_CORRECT_MODEL
-  SOME_UNDERSTANDING
   NEUTRAL_ACTION
+  SOME_UNDERSTANDING
+  COMMITTING_TO_CORRECT_MODEL
   COMMITTING_TO_INCORRECT_MODEL
 
 - Do NOT include explanations, reasoning, narrative, or additional text.
@@ -96,7 +96,28 @@ You must classify the player input into EXACTLY ONE of the following categories.
 CLASSIFICATION CATEGORIES
 ────────────────────────────────────
 
-1. COMMITTING_TO_CORRECT_MODEL
+1. NEUTRAL_ACTION
+- The LATEST input does not provide enough evidence of any mental model of the problem.
+- Generic exploration, description, or interaction.
+- Behaviors that don't contain any reference to the key requirement, positive or negative.
+
+Abstract examples:
+- Looking around
+- Examining an object
+- Performing routine actions with no strategic implication
+
+2. SOME_UNDERSTANDING
+- The LATEST input probes, experiments with, or mentions some but not all of the key requirements.
+- Player is performing the correct actions without fully understanding the model.
+- Player seems to understand the model but not behaving or performing a specific action to that end.
+- The action could still be exploratory or reversible.
+
+Abstract examples:
+- If the key requirement is to WAIT, the player tries pausing briefly or asks what happens if they do nothing.
+- If the key requirement is to ARGUE, the player considers pushing back but hedges.
+- If the key requirement is to DISTRUST, the player expresses mild suspicion without acting on it.
+
+3. COMMITTING_TO_CORRECT_MODEL
 - The LATEST input describes an action or decision that ONLY makes sense
   if the player has the correct mental model.
 - The player adopts the required behavior and stops incompatible behavior.
@@ -107,32 +128,6 @@ Abstract examples (NOT player text):
 - If the key requirement is to ARGUE, the player directly challenges or confronts.
 - If the key requirement is to DISTRUST, the player refuses cooperation or questions motives.
 
-────────────────────────────────────
-
-2. SOME_UNDERSTANDING
-- The LATEST input probes, experiments with, or tentatively applies
-  the correct model.
-- Indicates awareness but not full commitment.
-- The action could still be exploratory or reversible.
-
-Abstract examples:
-- If the key requirement is to WAIT, the player tries pausing briefly or asks what happens if they do nothing.
-- If the key requirement is to ARGUE, the player considers pushing back but hedges.
-- If the key requirement is to DISTRUST, the player expresses mild suspicion without acting on it.
-
-────────────────────────────────────
-
-3. NEUTRAL_ACTION
-- The LATEST input does not provide enough evidence of any mental model.
-- Generic exploration, description, or interaction.
-- Could be compatible with multiple interpretations.
-
-Abstract examples:
-- Looking around
-- Examining an object
-- Performing routine actions with no strategic implication
-
-────────────────────────────────────
 
 4. COMMITTING_TO_INCORRECT_MODEL
 - The LATEST input reinforces or escalates behavior that is incompatible
@@ -149,9 +144,9 @@ OUTPUT RULES (CRITICAL)
 ────────────────────────────────────
 
 - Output EXACTLY ONE of the following tokens:
-  COMMITTING_TO_CORRECT_MODEL
-  SOME_UNDERSTANDING
   NEUTRAL_ACTION
+  SOME_UNDERSTANDING
+  COMMITTING_TO_CORRECT_MODEL
   COMMITTING_TO_INCORRECT_MODEL
 
 - Do NOT include explanations, reasoning, narrative, or additional text.

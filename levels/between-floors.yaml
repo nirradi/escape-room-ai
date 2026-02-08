@@ -3,12 +3,8 @@ title: "Between Floors"
 
 # General level context used by both narration and mutation
 context: |
-  The player is inside a small, enclosed elevator stalled between floors.
-  The lights are on but flicker slightly. The doors are shut and do not respond.
-  A panel of elevator buttons is mounted on the wall, all of them lit.
-  A faint mechanical hum comes and goes, suggesting the elevator still has power.
-  There is no visible damage, no emergency alarm ringing, and no immediate danger,
-  just the discomfort of being stuck and the pressure to do something.
+  As the player stepped into an elevator, it suddenly jolted and came to an abrupt halt. 
+  The doors closed behind them, sealing them inside. The elevator is now stuck between floors, leaving the player trapped in a confined space with no immediate way out.
   
 
 # Narration-specific guidelines
@@ -19,9 +15,6 @@ narration_prompt: |
   When the player attempts to press buttons, force doors, jump, pry, or escape,
   respond with consistent but non-escalating resistance: the elevator does not move,
   buttons do nothing, and the situation remains unchanged.
-  
-  Subtly reinforce that frantic action is ineffective by repeating sensory details
-  (the hum, flickering lights, silence) without punishment or failure states.
   
   If the player listens, gradually introduce signs of external intervention: 
   distant voices, a radio crackle, vibrations. 

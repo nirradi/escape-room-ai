@@ -338,7 +338,7 @@ if __name__ == "__main__":
             },
             {
                 "csv": Path(__file__).parent / "benchmark_ice_cream.csv",
-                "level": project_root / "levels" / "level_id: ice-cream.yaml",
+                "level": project_root / "levels" / "ice-cream.yaml",
                 "name": "ICE-CREAM BENCHMARK"
             },
         ]

@@ -1,0 +1,127 @@
+================================================================================
+EVALUATE BENCHMARK
+================================================================================
+
+Loaded level: Test Evaluator Level
+Level path: /Users/nir.radian/nirdev/escape-room/levels/test-evaluator.yaml
+
+Loaded 27 test cases from CSV
+CSV path: /Users/nir.radian/nirdev/escape-room/scripts/benchmark_evaluate_testcases.csv
+================================================================================
+
+[TEST  1] ✓ PASS                          COMMITTING_TO_CORRECT_MODEL  Player explicitly states understanding of the key requirement
+         Input: "I need to use the key to unlock the door so I can escape..."
+
+[TEST  2] ✓ PASS                          COMMITTING_TO_CORRECT_MODEL  Player demonstrates sound reasoning about the lock and key
+         Input: "This key matches the shape of the keyhole, this should open ..."
+
+[TEST  3] ✓ PASS                          COMMITTING_TO_CORRECT_MODEL  Player correctly integrates past dialogue about the key requirement
+         Input: "Now I'll insert the key into the lock and turn it..."
+
+[TEST  4] ✓ PASS                          SOME_UNDERSTANDING    Player shows awareness but with uncertainty about the solution
+         Input: "There should be a key somewhere in this room?..."
+
+[TEST  5] ✓ PASS                          SOME_UNDERSTANDING    Player partially grasps the concept but remains vague
+         Input: "Maybe this opens something?..."
+
+[TEST  6] ✓ PASS                          SOME_UNDERSTANDING    Player identifies elements but doesn't fully connect the logic
+         Input: "I'll try using this on the lock..."
+
+[TEST  7] ✓ PASS                          SOME_UNDERSTANDING    Player asks clarifying question about the locked door
+         Input: "Is the key supposed to unlock that door over there?..."
+
+[TEST  8] ✓ PASS                          SOME_UNDERSTANDING    Player hesitantly connects the key to the door
+         Input: "I have the key and there's a door so... maybe they go togeth..."
+
+[TEST  9] ✓ PASS                          SOME_UNDERSTANDING    Player shows understanding through incomplete reasoning
+         Input: "The key looks like it could fit but I'm not completely sure..."
+
+[TEST 10] ✓ PASS                          SOME_UNDERSTANDING    Player demonstrates partial grasp through trial intention
+         Input: "Let me see if the key works on this lock..."
+
+[TEST 11] ✓ PASS                          SOME_UNDERSTANDING    Player shows incremental understanding through exploration
+         Input: "I'll study the key and the lock to figure out if they match..."
+
+[TEST 12] ✗ FAIL (got SOME_UNDERSTANDING)  NEUTRAL_ACTION        Player input is too ambiguous to assess understanding
+         Input: "Hmm, interesting..."
+
+[TEST 13] ✗ FAIL (got SOME_UNDERSTANDING)  NEUTRAL_ACTION        Player input is off-topic relative to the key requirement
+         Input: "What's the temperature in here?..."
+
+[TEST 14] ✗ FAIL (got SOME_UNDERSTANDING)  COMMITTING_TO_INCORRECT_MODEL  Player demonstrates fundamental misunderstanding
+         Input: "The key must be for something else, not this door..."
+
+[TEST 15] ✓ PASS                          COMMITTING_TO_INCORRECT_MODEL  Player contradicts their prior understanding
+         Input: "Actually, I'll just ignore the key and try to climb out thro..."
+
+[TEST 16] ✗ FAIL (got SOME_UNDERSTANDING)  COMMITTING_TO_CORRECT_MODEL  Question demonstrating clear understanding of the key mechanism
+         Input: "Does the lock turn when I insert the key?..."
+
+[TEST 17] ✗ FAIL (got SOME_UNDERSTANDING)  COMMITTING_TO_CORRECT_MODEL  Question showing understanding of the solution path
+         Input: "Will the door open if I turn the key in the lock?..."
+
+[TEST 18] ✗ FAIL (got SOME_UNDERSTANDING)  COMMITTING_TO_CORRECT_MODEL  Question about executing the understood solution
+         Input: "Should I use the key on this locked door now?..."
+
+[TEST 19] ✓ PASS                          SOME_UNDERSTANDING    Question showing partial grasp of the mechanism
+         Input: "Does this key fit any of the locks in here?..."
+
+[TEST 20] ✓ PASS                          SOME_UNDERSTANDING    Question with uncertainty about correct application
+         Input: "Can I use this thing to open something?..."
+
+[TEST 21] ✓ PASS                          SOME_UNDERSTANDING    Question exploring the connection
+         Input: "Is there a lock that matches this key?..."
+
+[TEST 22] ✗ FAIL (got SOME_UNDERSTANDING)  NEUTRAL_ACTION        Generic question without revealing understanding
+         Input: "What should I do?..."
+
+[TEST 23] ✗ FAIL (got SOME_UNDERSTANDING)  NEUTRAL_ACTION        Vague question unrelated to key requirement
+         Input: "Is anyone else here?..."
+
+[TEST 24] ✓ PASS                          SOME_UNDERSTANDING    Long history with gradual exploration showing partial understanding
+         Input: "The keyhole and key look like they match..."
+
+[TEST 25] ✓ PASS                          SOME_UNDERSTANDING    Extended dialogue with tentative connection at end
+         Input: "Maybe I should check if this key fits..."
+
+[TEST 26] ✗ FAIL (got SOME_UNDERSTANDING)  NEUTRAL_ACTION        Long history but final input too vague to classify
+         Input: "I walk back to the door..."
+
+[TEST 27] ✗ FAIL (got SOME_UNDERSTANDING)  COMMITTING_TO_CORRECT_MODEL  Long history culminating in clear understanding
+         Input: "This key must open the door..."
+
+================================================================================
+DETERMINISM CHECK (running same inputs twice)
+================================================================================
+[TEST  1] ✓ Deterministic: COMMITTING_TO_CORRECT_MODEL
+[TEST  5] ✓ Deterministic: SOME_UNDERSTANDING
+[TEST 12] ✓ Deterministic: SOME_UNDERSTANDING
+[TEST 24] ✓ Deterministic: SOME_UNDERSTANDING
+[TEST 27] ✓ Deterministic: SOME_UNDERSTANDING
+
+================================================================================
+BENCHMARK SUMMARY
+================================================================================
+
+INSTRUCTION-FOLLOWING (Format Compliance)         
+  Valid token responses: 27/27 (100.0%)
+  Invalid responses:     0/27 (0.0%)
+
+  ✓ DETERMINISM: All sampled tests produced consistent results
+
+CLASSIFICATION ACCURACY (Semantic Correctness)    
+  Correct classifications: 17/27 (63.0%)
+  Wrong classifications:   10/27 (37.0%)
+
+OVERALL ACCURACY                                  
+  Total correct:  17/27 (63.0%)
+
+BREAKDOWN BY EXPECTED CLASSIFICATION              
+--------------------------------------------------------------------------------
+Classification            Passed     Total      Rate      
+--------------------------------------------------------------------------------
+COMMITTING_TO_CORRECT_MODEL 3          7          43%       
+SOME_UNDERSTANDING        13         13         100%      
+NEUTRAL_ACTION            0          5          0%        
+COMMITTING_TO_INCORRECT_MODEL 1          2          50%       
+================================================================================
