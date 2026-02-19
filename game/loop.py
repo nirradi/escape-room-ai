@@ -175,7 +175,7 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: st
 	state = state_mod.create_initial_state()
 
 	# Generate initial narration before the game loop starts
-	initial_narration = narrator("", state, level)
+	initial_narration = narrator("", state, level, phase="initial")
 	print_to_player(initial_narration.text)
 	
 	# Initialize dialogue history with the opening narration
@@ -224,14 +224,16 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: st
 		# Check win/lose conditions before narrating
 		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
-			print_to_player("WIN CONDITION MET — Level complete.")
+			end_narration = narrator(user_input, state, level, phase="win_end")
+			print_to_player(end_narration.text)
 			break
 		if level_result == LevelResult.TIMEOUT_FAIL:
-			print_to_player("FAILURE: Maximum game counter reached.")
+			end_narration = narrator(user_input, state, level, phase="lose_end")
+			print_to_player(end_narration.text)
 			break
 
 		# Use the selected narrator to generate narration
-		narration = narrator(user_input, state, level)
+		narration = narrator(user_input, state, level, phase="turn")
 		print_to_player(narration.text)
 		
 		# Add both player and narrator turns to dialogue history

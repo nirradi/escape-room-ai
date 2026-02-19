@@ -23,8 +23,12 @@ class TestGameLoopWin:
         user_inputs = ["increase confidence"] * 2
         
         with patch("builtins.input", side_effect=user_inputs):
-            # Should not raise an exception, just exit normally on win
-            main(evaluator_type="stub", narrator_type="stub")
+            with patch("builtins.print") as mock_print:
+                # Should not raise an exception, just exit normally on win
+                main(evaluator_type="stub", narrator_type="stub")
+
+                outputs = [call[0][0] for call in mock_print.call_args_list if call[0]]
+                assert any("[end=win]" in str(o) for o in outputs), "Should emit win end narration"
 
 
 class TestGameLoopTimeout:
@@ -37,8 +41,12 @@ class TestGameLoopTimeout:
         user_inputs = ["unhandled command"] * 10
         
         with patch("builtins.input", side_effect=user_inputs):
-            # Should exit normally on timeout
-            main(evaluator_type="stub", narrator_type="stub")
+            with patch("builtins.print") as mock_print:
+                # Should exit normally on timeout
+                main(evaluator_type="stub", narrator_type="stub")
+
+                outputs = [call[0][0] for call in mock_print.call_args_list if call[0]]
+                assert any("[end=lose]" in str(o) for o in outputs), "Should emit lose end narration"
 
 
 class TestUrgencyProgression:
@@ -81,7 +89,7 @@ class TestUrgencyProgression:
         
         # Last ones should be DIRE
         if len(urgency_outputs) >= 8:
-            assert "[urgency=DIRE]" in str(urgency_outputs[-1])
+            assert "DIRE" in str(urgency_outputs[-1])
 
     def test_urgency_reflects_game_state(self):
         """Test that urgency is correctly set in game state through apply_patch."""

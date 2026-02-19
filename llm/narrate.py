@@ -23,6 +23,8 @@ LOG = logging.getLogger(__name__)
 MODEL_CFG: Dict[str, Any] = load_model_config(key="narrator")
 GENERAL_NARRATOR_RULES: str = load_prompt("narrate")
 INITIAL_NARRATOR_RULES: str = load_prompt("narrate_initial")
+WIN_END_NARRATOR_RULES: str = load_prompt("narrate_win_end")
+LOSE_END_NARRATOR_RULES: str = load_prompt("narrate_lose_end")
 
 PROGRESS_FEEDBACK = {
     "COMMITTING_TO_CORRECT_MODEL": "Provide subtle positive reinforcement - the player is making excellent progress toward solving the puzzle.",
@@ -75,18 +77,32 @@ def _get_progress_feedback(classification: str) -> str | None:
     return PROGRESS_FEEDBACK.get(normalized)
 
 
-def narrate(user_input: str, state: GameState, level: Level) -> Narration:
+def _dialogue_history_text(dialogue) -> str:
+    lines = []
+    for turn in dialogue:
+        if not isinstance(turn, dict):
+            continue
+        role = turn.get("role")
+        content = turn.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        role_name = "player" if role == "player" else "narrator"
+        lines.append(f"{role_name}: {content.strip()}")
+    return "\n".join(lines)
+
+
+def narrate(user_input: str, state: GameState, level: Level, phase: str = "turn") -> Narration:
     """
     Generate a terse, in-universe terminal response for the player using LLM.
     Output is plain text, no meta commentary, no emojis, no explanations.
     
-    For the initial narration (when dialogue is empty), uses a special opening prompt
-    to set the scene before any player interaction.
+    Supports initial, regular turn, and special endgame narration phases.
     
     Args:
         user_input: The player's input.
         state: The current game state.
         level: The current level definition.
+        phase: One of "initial", "turn", "win_end", or "lose_end".
         
     Returns:
         Narration: A narration object with text attribute.
@@ -97,12 +113,24 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
         narration_prompt = level.narration_prompt or ""
         dialogue = state.vibe.dialogue or []
         last_classification = state.vibe.last_evaluator_classification
-        
-        is_initial = len(dialogue) == 0
+        normalized_phase = (phase or "turn").strip().lower()
+
+        if normalized_phase not in {"initial", "turn", "win_end", "lose_end"}:
+            normalized_phase = "turn"
+
+        is_initial = normalized_phase == "initial" or (normalized_phase == "turn" and len(dialogue) == 0)
+        is_end_phase = normalized_phase in {"win_end", "lose_end"}
 
         # Build system context
         system_parts = []
-        system_parts.append(INITIAL_NARRATOR_RULES if is_initial else GENERAL_NARRATOR_RULES)
+        if normalized_phase == "win_end":
+            system_parts.append(WIN_END_NARRATOR_RULES)
+        elif normalized_phase == "lose_end":
+            system_parts.append(LOSE_END_NARRATOR_RULES)
+        elif is_initial:
+            system_parts.append(INITIAL_NARRATOR_RULES)
+        else:
+            system_parts.append(GENERAL_NARRATOR_RULES)
         
         if general_context:
             system_parts.append("Level context:\n" + general_context)
@@ -110,10 +138,26 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
         if narration_prompt:
             system_parts.append("Narration guidelines:\n" + narration_prompt)
         
-        if not is_initial:
+        if not is_initial and not is_end_phase:
             progress_guidance = _get_progress_feedback(last_classification)
             if progress_guidance:
                 system_parts.append(progress_guidance)
+
+        if is_end_phase:
+            confidence = state.strict.solutionConfidenceScore
+            game_counter = state.strict.gameCounter
+            max_turns = level.max_turns
+            outcome = "WIN" if normalized_phase == "win_end" else "LOSS"
+            history_text = _dialogue_history_text(dialogue)
+            system_parts.append("Outcome: " + outcome)
+            system_parts.append(f"Current confidence score: {confidence}")
+            system_parts.append(f"Current game counter: {game_counter}")
+            if max_turns is not None:
+                system_parts.append(f"Level max turns: {max_turns}")
+            if last_classification:
+                system_parts.append("Last evaluator classification: " + str(last_classification))
+            if history_text:
+                system_parts.append("Player and narrator history:\n" + history_text)
         
         system_parts.append("Current urgency: " + urgency)
         system_message = "\n\n".join(system_parts)
@@ -125,6 +169,10 @@ def narrate(user_input: str, state: GameState, level: Level) -> Narration:
         # Add current user input or initial prompt
         if is_initial:
             lc_messages.append(HumanMessage(content="Begin the narration."))
+        elif normalized_phase == "win_end":
+            lc_messages.append(HumanMessage(content="Deliver the final win narration now."))
+        elif normalized_phase == "lose_end":
+            lc_messages.append(HumanMessage(content="Deliver the final lose narration now."))
         elif user_input.strip():
             lc_messages.append(HumanMessage(content=user_input))
         else:
