@@ -1,0 +1,5 @@
+evaluator_type: llm
+narrator_type: llm
+levels:
+  - between-floors.yaml
+  - getting-in.yaml

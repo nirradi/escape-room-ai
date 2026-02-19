@@ -1,0 +1,24 @@
+level_id: 5
+title: "Getting In"
+
+# General level context used by both narration and mutation
+context: |
+  This player is worried that their grandmother isn't answering because 
+  of some medical emergency, and every minute counts. Help is already on its way.
+  The player needs to get into their building building, but the building door is locked.
+  There is a keypad on the door.
+  
+# Narration-specific guidelines
+narration_prompt: |
+  Time is of the essence and attempts to call for a locksmith would prolong the wait, the door needs to be opened 
+  now, stress the urgency of the situation accordingly. Nothing that the player does will allow them to get into the building.
+  
+  
+
+# Key player requirement: the main question/concept they must grasp
+key_player_requirement: |
+  The keypad to the door hasn't been configured so the default codes would work: 0000 or 1234 or 1111 or something similar. 
+  Attempts to smash the buttons or random numbers won't work, only default and common codes will work.
+  
+# Optional: other metadata
+max_turns: 6

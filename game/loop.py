@@ -1,5 +1,3 @@
-
-
 """Main game loop skeleton.
 
 Orchestrates: terminal input -> intent -> patch generator (stub or LLM) -> apply_patch -> render
@@ -12,25 +10,22 @@ import argparse
 import json
 import logging
 import os
-from dataclasses import asdict
-from typing import Optional
+from enum import Enum
 from pathlib import Path
+from typing import Any, Callable, Generator, Optional
 
 from engine import state as state_mod
-from engine.patch import apply_patch, PatchResult, classification_to_patch
-
-from enum import Enum
-from game.narrate import Narration
+from engine.patch import PatchResult, apply_patch, classification_to_patch
 from game import level as level_mod
 
 # ANSI color codes for narrator output
-COLOR_NARRATOR = '\033[36m'  # Cyan
-COLOR_RESET = '\033[0m'      # Reset to default
+COLOR_NARRATOR = "\033[36m"  # Cyan
+COLOR_RESET = "\033[0m"      # Reset to default
 
 
 def print_to_player(text: str) -> None:
 	"""Print colored text for player-facing narrator output.
-	
+
 	Args:
 		text: The text to print in narrator color (cyan).
 	"""
@@ -51,14 +46,15 @@ def get_evaluator(evaluator_type: str = "llm"):
 	"""
 	if evaluator_type == "stub":
 		from game.evaluate_stub import evaluate
+
 		LOG.info("Using stub (non-LLM) evaluator")
 		return evaluate
-	elif evaluator_type == "llm":
+	if evaluator_type == "llm":
 		from llm.evaluate import evaluate
+
 		LOG.info("Using LLM evaluator")
 		return evaluate
-	else:
-		raise ValueError(f"Unknown evaluator_type: {evaluator_type}")
+	raise ValueError(f"Unknown evaluator_type: {evaluator_type}")
 
 
 def get_narrator(narrator_type: str = "llm"):
@@ -75,14 +71,15 @@ def get_narrator(narrator_type: str = "llm"):
 	"""
 	if narrator_type == "stub":
 		from game.narrator_stub import narrate as stub_narrate
+
 		LOG.info("Using stub (non-LLM) narrator")
 		return stub_narrate
-	elif narrator_type == "llm":
+	if narrator_type == "llm":
 		from llm.narrate import narrate as llm_narrate
+
 		LOG.info("Using LLM narrator")
 		return llm_narrate
-	else:
-		raise ValueError(f"Unknown narrator_type: {narrator_type}")
+	raise ValueError(f"Unknown narrator_type: {narrator_type}")
 
 
 LOG = logging.getLogger(__name__)
@@ -102,10 +99,11 @@ for _n in ("httpcore.http11", "httpcore.connection", "httpx"):
 
 MAX_CONFIDENCE_SCORE = 0.5
 
+
 class LevelResult(Enum):
-		WIN = "win"
-		CONTINUE = "continue"
-		TIMEOUT_FAIL = "timeout_fail"
+	WIN = "win"
+	CONTINUE = "continue"
+	TIMEOUT_FAIL = "timeout_fail"
 
 
 def _calculate_urgency(game_counter: int, max_turns: Optional[int]) -> str:
@@ -123,82 +121,74 @@ def _calculate_urgency(game_counter: int, max_turns: Optional[int]) -> str:
 
 def check_level_conditions(state: state_mod.GameState, level: level_mod.Level) -> LevelResult:
 	"""Check if the current level's win conditions are met.
-	
+
 	Args:
 		state: Current game state.
 		level: Current level definition.
-	
+
 	Returns:
 		LevelResult: WIN, CONTINUE, or TIMEOUT_FAIL.
 	"""
-
 	if state.strict.solutionConfidenceScore >= MAX_CONFIDENCE_SCORE:
 		return LevelResult.WIN
-	
 
 	max_turns = level.max_turns or 0
 	if max_turns and state.strict.gameCounter >= max_turns:
 		return LevelResult.TIMEOUT_FAIL
-	
+
 	return LevelResult.CONTINUE
 
 
 def render_patch_result(result: PatchResult) -> None:
 	"""Print patch application results: success, errors, warnings."""
 	LOG.debug("Patch apply result:")
-	LOG.debug(f"  success: {result.success}")
+	LOG.debug("  success: %s", result.success)
 	if result.strict_errors:
 		LOG.debug("  strict errors:")
 		for err in result.strict_errors:
-			LOG.debug(f"    - {err.field}: {err.reason} (value={err.attempted_value})")
+			LOG.debug("    - %s: %s (value=%s)", err.field, err.reason, err.attempted_value)
 	if result.warnings:
 		LOG.debug("  warnings:")
-		for w in result.warnings:
-			LOG.debug(f"    - {w}")
+		for warning in result.warnings:
+			LOG.debug("    - %s", warning)
 
 
+def run_level(
+	level: level_mod.Level,
+	evaluator: Callable[[str, state_mod.GameState, level_mod.Level], Any],
+	narrator: Callable[[str, state_mod.GameState, level_mod.Level, str], Any],
+	input_fn: Callable[[str], str],
+	output_fn: Callable[[str], None],
+	state: Optional[state_mod.GameState] = None,
+) -> Generator[None, None, str]:
+	"""Run a single level as a step-wise generator.
 
-
-def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: str = "bobs-plan.yaml") -> None:
-	"""Run the main game loop.
-
-	Args:
-		evaluator_type: "stub" or "llm" (default, uses LLM evaluator).
-		narrator_type: "stub" or "llm" (default, uses LLM narrator).
-		level_name: Name of the level file to load (default: "bobs-plan.yaml").
+	Input/output are injected via ``input_fn`` and ``output_fn``.
+	The generator yields control points and returns the final outcome:
+	``"win"``, ``"loss"``, ``"error"``, or ``"aborted"``.
 	"""
+	state = state or state_mod.create_initial_state()
 
-	LOG.info("Starting game loop with evaluator_type=%s, narrator_type=%s, level_name=%s", evaluator_type, narrator_type, level_name)
-	evaluator = get_evaluator(evaluator_type)
-	narrator = get_narrator(narrator_type)
-	level = level_mod.load_level(Path("levels") / level_name)
-	state = state_mod.create_initial_state()
-
-	# Generate initial narration before the game loop starts
 	initial_narration = narrator("", state, level, phase="initial")
-	print_to_player(initial_narration.text)
-	
-	# Initialize dialogue history with the opening narration
+	output_fn(initial_narration.text)
+
 	initial_dialogue = [{"role": "narrator", "content": initial_narration.text}]
 	state = apply_patch(state, {"vibe": {"dialogue": initial_dialogue}}).state
+	yield None
 
 	while True:
 		try:
-			user_input = input('> ')
+			user_input = input_fn("> ")
 		except (EOFError, KeyboardInterrupt):
-			LOG.debug('Exiting.')
-			break
+			return "aborted"
 
-		# Understand whether the player is making progress towards the solution or not
 		try:
 			classification = evaluator(user_input, state, level)
 		except Exception as exc:
-			LOG.error("Evaluator failed, aborting game: %s", exc)
-			print_to_player(f"FATAL ERROR: Evaluator failed. Game aborted.")
-			raise SystemExit(1)
+			LOG.error("Evaluator failed, aborting level: %s", exc)
+			output_fn("FATAL ERROR: Evaluator failed. Level aborted.")
+			return "error"
 
-		# Based on the classification, generate a patch to update the game state
-		# don't advance gameCounter on INVALID classification
 		new_game_counter = state.strict.gameCounter
 		if classification.level != "INVALID":
 			new_game_counter += 1
@@ -221,22 +211,19 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: st
 			render_patch_result(result)
 		state = result.state
 
-		# Check win/lose conditions before narrating
 		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
 			end_narration = narrator(user_input, state, level, phase="win_end")
-			print_to_player(end_narration.text)
-			break
+			output_fn(end_narration.text)
+			return "win"
 		if level_result == LevelResult.TIMEOUT_FAIL:
 			end_narration = narrator(user_input, state, level, phase="lose_end")
-			print_to_player(end_narration.text)
-			break
+			output_fn(end_narration.text)
+			return "loss"
 
-		# Use the selected narrator to generate narration
 		narration = narrator(user_input, state, level, phase="turn")
-		print_to_player(narration.text)
-		
-		# Add both player and narrator turns to dialogue history
+		output_fn(narration.text)
+
 		base_dialogue = state.vibe.dialogue or []
 		user_turn = {"role": "player", "content": user_input}
 		narrator_turn = {"role": "narrator", "content": narration.text}
@@ -245,6 +232,36 @@ def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: st
 			"vibe": {"dialogue": updated_dialogue, "urgency": state.vibe.urgency},
 		}
 		state = apply_patch(state, dialogue_patch).state
+		yield None
+
+
+def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: str = "bobs-plan.yaml") -> None:
+	"""Run one level with terminal I/O (compatibility adapter)."""
+	LOG.info(
+		"Starting game loop with evaluator_type=%s, narrator_type=%s, level_name=%s",
+		evaluator_type,
+		narrator_type,
+		level_name,
+	)
+	evaluator = get_evaluator(evaluator_type)
+	narrator = get_narrator(narrator_type)
+	level = level_mod.load_level(Path("levels") / level_name)
+
+	level_runner = run_level(
+		level=level,
+		evaluator=evaluator,
+		narrator=narrator,
+		input_fn=input,
+		output_fn=print_to_player,
+	)
+
+	while True:
+		try:
+			next(level_runner)
+		except StopIteration as stop:
+			if stop.value == "error":
+				raise SystemExit(1)
+			break
 
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
@@ -269,6 +286,6 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
 	return parser.parse_args(argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 	args = _parse_args()
 	main(evaluator_type=args.evaluator_type, narrator_type=args.narrator_type, level_name=args.level)

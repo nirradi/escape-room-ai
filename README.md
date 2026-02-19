@@ -10,14 +10,13 @@ Failure is treated as feedback, not punishment. Resets are intentional, legible 
 
 For local development with LLM-backed narration and evaluation, you must have Ollama running in the background so the models can be called. Start Ollama before launching the game loop. Download: https://ollama.com/download
 
-The recommended run configuration is defined in [ .vscode/launch.json ](.vscode/launch.json). It launches the game loop with the LLM evaluator and narrator, plus the default level.
+The recommended run configuration is defined in [ .vscode/launch.json ](.vscode/launch.json). It launches `game.py`, which delegates to `game/runner.py` and loads runtime settings from `config/game.yaml`.
 
 
-### Command line (equivalent)
+### Command line
 
 ```bash
-python game/loop.py \
-	--evaluator-type llm \
-	--narrator-type llm \
-	--level between-floors.yaml
+python game.py
 ```
+
+Configure evaluator, narrator, and level order in `config/game.yaml`.
