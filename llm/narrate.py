@@ -10,8 +10,22 @@ import logging
 from engine.state import GameState
 from game.level import Level
 from .tools import load_model_config, load_prompt
-from langchain_ollama import ChatOllama  # type: ignore
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+try:
+    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage  # type: ignore
+except Exception:
+    @dataclass
+    class _FallbackMessage:
+        content: str
+
+    class SystemMessage(_FallbackMessage):
+        pass
+
+    class HumanMessage(_FallbackMessage):
+        pass
+
+    class AIMessage(_FallbackMessage):
+        pass
 
 # TODO: Prompt tuning per level
 # TODO: Injecting story context later
@@ -42,8 +56,13 @@ class Narration:
 
 # === Helpers (runtime utilities) ===
 
-def _get_llm() -> ChatOllama:
+def _get_llm() -> Any:
     """Create and return a ChatOllama instance configured for narration."""
+    try:
+        from langchain_ollama import ChatOllama  # type: ignore
+    except Exception as exc:
+        raise RuntimeError("langchain_ollama is required for narration") from exc
+
     model = None
     if isinstance(MODEL_CFG, dict):
         model = MODEL_CFG.get("model") or MODEL_CFG.get("name")
