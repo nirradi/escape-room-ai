@@ -6,30 +6,24 @@ The patch generator can be configured at runtime via evaluator_type ("stub" or "
 """
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import os
+from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Any, Callable, Generator, Optional
 
 from engine import state as state_mod
 from engine.patch import PatchResult, apply_patch, classification_to_patch
 from game import level as level_mod
 
-# ANSI color codes for narrator output
-COLOR_NARRATOR = "\033[36m"  # Cyan
-COLOR_RESET = "\033[0m"      # Reset to default
-
-
-def print_to_player(text: str) -> None:
-	"""Print colored text for player-facing narrator output.
-
-	Args:
-		text: The text to print in narrator color (cyan).
-	"""
-	print(f"{COLOR_NARRATOR}{text}{COLOR_RESET}")
+@dataclass(frozen=True)
+class OutputEvent:
+	"""Output payload emitted by the game loop."""
+	text: str
+	phase: str
+	state: Optional[state_mod.GameState]
+	level: Optional[level_mod.Level]
 
 
 def get_evaluator(evaluator_type: str = "llm"):
@@ -157,36 +151,47 @@ def run_level(
 	level: level_mod.Level,
 	evaluator: Callable[[str, state_mod.GameState, level_mod.Level], Any],
 	narrator: Callable[[str, state_mod.GameState, level_mod.Level, str], Any],
-	input_fn: Callable[[str], str],
-	output_fn: Callable[[str], None],
 	state: Optional[state_mod.GameState] = None,
-) -> Generator[None, None, str]:
+) -> Generator[OutputEvent, Optional[str], str]:
 	"""Run a single level as a step-wise generator.
 
-	Input/output are injected via ``input_fn`` and ``output_fn``.
-	The generator yields control points and returns the final outcome:
-	``"win"``, ``"loss"``, ``"error"``, or ``"aborted"``.
+	The generator yields output events and expects user input via ``send``.
+	It returns the final outcome: ``"win"``, ``"loss"``, ``"error"``,
+	or ``"aborted"``.
 	"""
 	state = state or state_mod.create_initial_state()
 
 	initial_narration = narrator("", state, level, phase="initial")
-	output_fn(initial_narration.text)
+	yield OutputEvent(
+		text=initial_narration.text,
+		phase="initial",
+		state=state,
+		level=level,
+	)
 
 	initial_dialogue = [{"role": "narrator", "content": initial_narration.text}]
 	state = apply_patch(state, {"vibe": {"dialogue": initial_dialogue}}).state
-	yield None
 
 	while True:
-		try:
-			user_input = input_fn("> ")
-		except (EOFError, KeyboardInterrupt):
+		user_input = yield OutputEvent(
+			text="",
+			phase="prompt",
+			state=state,
+			level=level,
+		)
+		if user_input is None:
 			return "aborted"
 
 		try:
 			classification = evaluator(user_input, state, level)
 		except Exception as exc:
 			LOG.error("Evaluator failed, aborting level: %s", exc)
-			output_fn("FATAL ERROR: Evaluator failed. Level aborted.")
+			yield OutputEvent(
+				text="FATAL ERROR: Evaluator failed. Level aborted.",
+				phase="error",
+				state=state,
+				level=level,
+			)
 			return "error"
 
 		new_game_counter = state.strict.gameCounter
@@ -214,15 +219,30 @@ def run_level(
 		level_result = check_level_conditions(state, level)
 		if level_result == LevelResult.WIN:
 			end_narration = narrator(user_input, state, level, phase="win_end")
-			output_fn(end_narration.text)
+			yield OutputEvent(
+				text=end_narration.text,
+				phase="win_end",
+				state=state,
+				level=level,
+			)
 			return "win"
 		if level_result == LevelResult.TIMEOUT_FAIL:
 			end_narration = narrator(user_input, state, level, phase="lose_end")
-			output_fn(end_narration.text)
+			yield OutputEvent(
+				text=end_narration.text,
+				phase="lose_end",
+				state=state,
+				level=level,
+			)
 			return "loss"
 
 		narration = narrator(user_input, state, level, phase="turn")
-		output_fn(narration.text)
+		yield OutputEvent(
+			text=narration.text,
+			phase="turn",
+			state=state,
+			level=level,
+		)
 
 		base_dialogue = state.vibe.dialogue or []
 		user_turn = {"role": "player", "content": user_input}
@@ -232,60 +252,5 @@ def run_level(
 			"vibe": {"dialogue": updated_dialogue, "urgency": state.vibe.urgency},
 		}
 		state = apply_patch(state, dialogue_patch).state
-		yield None
 
 
-def main(evaluator_type: str = "llm", narrator_type: str = "llm", level_name: str = "bobs-plan.yaml") -> None:
-	"""Run one level with terminal I/O (compatibility adapter)."""
-	LOG.info(
-		"Starting game loop with evaluator_type=%s, narrator_type=%s, level_name=%s",
-		evaluator_type,
-		narrator_type,
-		level_name,
-	)
-	evaluator = get_evaluator(evaluator_type)
-	narrator = get_narrator(narrator_type)
-	level = level_mod.load_level(Path("levels") / level_name)
-
-	level_runner = run_level(
-		level=level,
-		evaluator=evaluator,
-		narrator=narrator,
-		input_fn=input,
-		output_fn=print_to_player,
-	)
-
-	while True:
-		try:
-			next(level_runner)
-		except StopIteration as stop:
-			if stop.value == "error":
-				raise SystemExit(1)
-			break
-
-
-def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
-	parser = argparse.ArgumentParser(description="Escape room game loop")
-	parser.add_argument(
-		"--evaluator-type",
-		default=os.getenv("EVALUATOR_TYPE", "llm"),
-		choices=["stub", "llm"],
-		help="Evaluator type",
-	)
-	parser.add_argument(
-		"--narrator-type",
-		default=os.getenv("NARRATOR_TYPE", "llm"),
-		choices=["stub", "llm"],
-		help="Narrator type",
-	)
-	parser.add_argument(
-		"--level",
-		default=os.getenv("LEVEL_NAME", "bobs-plan.yaml"),
-		help="Name of the level file to load (default: bobs-plan.yaml)",
-	)
-	return parser.parse_args(argv)
-
-
-if __name__ == "__main__":
-	args = _parse_args()
-	main(evaluator_type=args.evaluator_type, narrator_type=args.narrator_type, level_name=args.level)

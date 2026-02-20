@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from io import StringIO
 
-from game.loop import main
+from game.runner import main
 from engine import state as state_mod
 from engine.patch import apply_patch
 

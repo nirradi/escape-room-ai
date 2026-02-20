@@ -21,8 +21,8 @@ class TestGameOrchestrator:
         def input_fn(prompt: str) -> str:
             return next(inputs)
 
-        def output_fn(text: str) -> None:
-            outputs.append(text)
+        def output_fn(event) -> None:
+            outputs.append(event.text)
 
         run_game(
             level_names=["bobs-plan.yaml", "between-floors.yaml"],
@@ -46,8 +46,8 @@ class TestGameOrchestrator:
         def input_fn(prompt: str) -> str:
             return next(inputs)
 
-        def output_fn(text: str) -> None:
-            outputs.append(text)
+        def output_fn(event) -> None:
+            outputs.append(event.text)
 
         run_game(
             level_names=["bobs-plan.yaml"],
@@ -78,8 +78,8 @@ levels:
         def input_fn(prompt: str) -> str:
             return next(inputs)
 
-        def output_fn(text: str) -> None:
-            outputs.append(text)
+        def output_fn(event) -> None:
+            outputs.append(event.text)
 
         run_game_from_config(config_path=config_file, input_fn=input_fn, output_fn=output_fn)
 
