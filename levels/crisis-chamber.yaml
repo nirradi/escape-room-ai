@@ -1,0 +1,31 @@
+level_id: 6
+title: "Crisis Chamber"
+
+# General level context used by both narration and mutation
+context: |
+  The player is the leader in a high-stakes "war room" where war is only a metaphor.
+  A looming catastrophe is approaching, and time is running out.
+  Find a creative interpretation of the "war room" setting, create 2 or 3 advisors with distinct personalities and perspectives, 
+  and build tension as the crisis worsens.
+
+# Narration-specific guidelines
+narration_prompt: |
+  Narrate a tense, first-person crisis room scene with vivid sensory details.
+  Keep the "war room" metaphor flexible so the scenario can be corporate, civic,
+  technical, or social rather as well as literal warfare.
+
+  The player proposes actions to avoid the catastrophe. Reflect their suggestion
+  seriously in the narration and show advisors responding. However, regardless of
+  the player's ideas, the catastrophe keeps inching closer: clocks tighten,
+  indicators worsen, alarms creep in. Avoid sudden resolution or full collapse.
+
+  Maintain an atmosphere of pressure and competing advice. 
+
+# Key player requirement: the main question/concept they must grasp
+key_player_requirement: |
+  The player must identify that one of the close advisors is a betrayer and
+  explicitly accuse them. Signs of understanding include naming a specific
+  advisor, challenging their contradictions, or calling them out as a backstabber.
+
+# Optional: other metadata
+max_turns: 3
