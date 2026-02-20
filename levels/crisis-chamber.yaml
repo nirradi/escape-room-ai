@@ -21,6 +21,21 @@ narration_prompt: |
 
   Maintain an atmosphere of pressure and competing advice. 
 
+win_narration_prompt: |
+  The ending should feel like a narrow, high-stakes save created by the player's accusation.
+  The player correctly identifies a close advisor as the betrayer; show the accusation landing
+  in the room with shock, denial, and a final confirming detail that exposes sabotage.
+
+  Make the reveal specific to the scenario and
+  show how the betrayer's hidden action was actually causing the crisis. 
+  The accused doesn't take things likely and initiates a hail mary, 
+  some nefarious move leads the player to lose conciousness, and the player wakes up in a safe place with the crisis averted but the betrayer's identity still a mystery.
+  
+
+lose_narration_prompt: |
+  Deliver a brief, intense collapse: alarms peak, systems fail, and the crisis breaks containment.
+  Keep it vivid and final, with no rescue turn or recovery.
+
 # Key player requirement: the main question/concept they must grasp
 key_player_requirement: |
   The player must identify that one of the close advisors is a betrayer and

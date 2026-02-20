@@ -18,6 +18,12 @@ context: |
 narration_prompt: |
   Line one.
   Line two.
+win_narration_prompt: |
+  Win line one.
+  Win line two.
+lose_narration_prompt: |
+  Lose line one.
+  Lose line two.
 key_player_requirement: |
   Understand the concept.
 max_turns: 7
@@ -31,6 +37,8 @@ max_turns: 7
     assert level.title == "Test Level"
     assert level.context == "General context."
     assert level.narration_prompt == "Line one.\nLine two."
+    assert level.win_narration_prompt == "Win line one.\nWin line two."
+    assert level.lose_narration_prompt == "Lose line one.\nLose line two."
     assert level.key_player_requirement == "Understand the concept."
     assert level.max_turns == 7
     assert level.raw.get("level_id") == 2

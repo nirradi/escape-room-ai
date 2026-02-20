@@ -16,6 +16,8 @@ class Level:
     title: str
     context: Optional[str] = None
     narration_prompt: Optional[str] = None
+    win_narration_prompt: Optional[str] = None
+    lose_narration_prompt: Optional[str] = None
     key_player_requirement: Optional[str] = None
     max_turns: Optional[int] = None
     raw: Dict[str, Any] = field(default_factory=dict)
@@ -43,6 +45,8 @@ def load_level(level_path: Path) -> Level:
         title=str(data.get("title") or ""),
         context=_safe_str(data.get("context")),
         narration_prompt=_safe_str(data.get("narration_prompt")),
+        win_narration_prompt=_safe_str(data.get("win_narration_prompt")),
+        lose_narration_prompt=_safe_str(data.get("lose_narration_prompt")),
         key_player_requirement=_safe_str(data.get("key_player_requirement")),
         max_turns=_safe_int(data.get("max_turns")),
         raw=data,

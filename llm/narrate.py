@@ -111,6 +111,8 @@ def narrate(user_input: str, state: GameState, level: Level, phase: str = "turn"
         urgency = state.vibe.urgency
         general_context = level.context or ""
         narration_prompt = level.narration_prompt or ""
+        win_narration_prompt = level.win_narration_prompt or ""
+        lose_narration_prompt = level.lose_narration_prompt or ""
         dialogue = state.vibe.dialogue or []
         last_classification = state.vibe.last_evaluator_classification
         normalized_phase = (phase or "turn").strip().lower()
@@ -137,6 +139,11 @@ def narrate(user_input: str, state: GameState, level: Level, phase: str = "turn"
         
         if narration_prompt:
             system_parts.append("Narration guidelines:\n" + narration_prompt)
+
+        if normalized_phase == "win_end" and win_narration_prompt:
+            system_parts.append("Win ending narration guidelines:\n" + win_narration_prompt)
+        if normalized_phase == "lose_end" and lose_narration_prompt:
+            system_parts.append("Lose ending narration guidelines:\n" + lose_narration_prompt)
         
         if not is_initial and not is_end_phase:
             progress_guidance = _get_progress_feedback(last_classification)
