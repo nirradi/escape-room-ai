@@ -2,3 +2,4 @@ evaluator_type: llm
 narrator_type: llm
 levels:
   - crisis-chamber.yaml
+  - locked-room-wake.yaml

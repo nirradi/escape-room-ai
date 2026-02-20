@@ -1,0 +1,35 @@
+level_id: 7
+title: "Locked-Room Wake"
+
+# General level context used by both narration and mutation
+context: |
+  The player regains consciousness in an unfamiliar room. There is only a chair.
+  There was a crisis outside,  it appears contained for now, but the player has been isolated. The room is locked,
+  windowless, and intentionally sterile. There are signs this was prepared in advance, 
+  suggesting that the player was targeted and betrayed by someone close to them. 
+
+  The player is disoriented but not physically incapacitated or bound. There are sparse objects in the room
+  (furniture, vents, paneling, fixtures, or personal effects) that can be inspected and used creatively.
+
+# Narration-specific guidelines
+narration_prompt: |
+  Narrate in first person with claustrophobic tension and sharp sensory detail.
+  Keep the situation grounded: the room is locked, and escape attempts should always fail
+  or have limited effect.
+
+  Keep pressure active: time is uncertain, external sounds are intermittent, and the betrayer may still be
+  influencing events outside. 
+
+win_narration_prompt: |
+  The betrayer comes in and is surprised by the player, allowing them to use the chair as a weapon to incapacitate the betrayer and escape.
+
+lose_narration_prompt: |
+  The player's options collapse. Sedation gas, power shutdown, or forced extraction ends the attempt.
+  Keep it tense and decisive, with the player losing initiative.
+
+# Key player requirement: the main question/concept they must grasp
+key_player_requirement: |
+  The player must have the chair in hand ready to use as a weapon on anyone coming in.
+
+# Optional: other metadata
+max_turns: 5
